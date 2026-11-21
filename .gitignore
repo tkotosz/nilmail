@@ -1,0 +1,6 @@
+node_modules/
+dist/
+pages-dist/
+.wrangler/
+.dev.vars
+test/e2e/screenshots/

@@ -1,0 +1,132 @@
+import { randomUUID } from 'node:crypto';
+import { watch } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { buildDevWorker } from './build.mjs';
+
+const port = Number(process.env.NILMAIL_PORT ?? 4173);
+const clients = new Set();
+let current;
+let timer;
+let building = false;
+let rebuildQueued = false;
+
+/** The Worker's secrets for local use, from `.dev.vars` (KEY=value lines, git-ignored), as Wrangler reads them. */
+async function readDevVars() {
+  const text = await readFile(new URL('../.dev.vars', import.meta.url), 'utf8').catch(() => '');
+  const vars = {};
+  for (const line of text.split('\n')) {
+    const match = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*"?(.*?)"?\s*$/.exec(line);
+    if (match) vars[match[1]] = match[2];
+  }
+  return vars;
+}
+
+function scheduleBuild() {
+  clearTimeout(timer);
+  timer = setTimeout(rebuild, 75);
+}
+
+function sendRevision(client) {
+  if (current) client.write(`data: ${current.revision}\n\n`);
+}
+
+async function rebuild() {
+  if (building) {
+    rebuildQueued = true;
+    return;
+  }
+  building = true;
+  do {
+    rebuildQueued = false;
+    try {
+      const worker = await buildDevWorker();
+      current = { worker, revision: randomUUID() };
+      for (const client of clients) sendRevision(client);
+      console.log('Built nilmail (live reload)');
+    } catch (error) {
+      console.error('Build failed. Watching for changes.', error.message);
+    }
+  } while (rebuildQueued);
+  building = false;
+}
+
+function withLiveReload(html, revision) {
+  const script = `<script>
+  (() => {
+    const updates = new EventSource('/__dev/reload');
+    updates.onmessage = event => {
+      if (event.data === ${JSON.stringify(revision)}) return;
+      updates.close();
+      location.reload();
+    };
+  })();
+</script>`;
+  return html.includes('</body>') ? html.replace('</body>', `${script}\n</body>`) : html + script;
+}
+
+const readBody = incoming =>
+  new Promise((resolve, reject) => {
+    const chunks = [];
+    incoming.on('data', chunk => chunks.push(chunk));
+    incoming.on('end', () => resolve(Buffer.concat(chunks)));
+    incoming.on('error', reject);
+  });
+
+const server = createServer(async (incoming, outgoing) => {
+  const url = new URL(incoming.url, `http://127.0.0.1:${server.address().port}`);
+  if (url.pathname === '/__dev/reload' && incoming.method === 'GET') {
+    outgoing.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
+    outgoing.write('retry: 500\n\n');
+    clients.add(outgoing);
+    outgoing.on('close', () => clients.delete(outgoing));
+    sendRevision(outgoing);
+    return;
+  }
+
+  const build = current;
+  if (!build) {
+    outgoing.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    outgoing.end(withLiveReload('<!doctype html><title>nilmail</title><p>Waiting for a successful build…</p>', null));
+    return;
+  }
+
+  try {
+    const hasBody = incoming.method !== 'GET' && incoming.method !== 'HEAD';
+    const request = new Request(url, {
+      method: incoming.method,
+      headers: Object.entries(incoming.headers).flatMap(([key, value]) =>
+        Array.isArray(value) ? value.map(item => [key, item]) : [[key, value]],
+      ),
+      body: hasBody ? await readBody(incoming) : undefined,
+      redirect: 'manual',
+    });
+    const response = await build.worker.fetch(request, await readDevVars());
+    const headers = {};
+    for (const [key, value] of response.headers) {
+      if (key === 'set-cookie') continue;
+      headers[key] = value;
+    }
+    const cookies = response.headers.getSetCookie();
+    if (cookies.length) headers['set-cookie'] = cookies;
+    if (incoming.method === 'GET' && headers['content-type']?.startsWith('text/html')) {
+      const html = withLiveReload(await response.text(), build.revision);
+      delete headers['content-length'];
+      outgoing.writeHead(response.status, headers).end(html);
+      return;
+    }
+    const body = Buffer.from(await response.arrayBuffer());
+    outgoing.writeHead(response.status, headers).end(body);
+  } catch (error) {
+    outgoing.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Server error.');
+    console.error(error);
+  }
+});
+
+server.listen(port, '127.0.0.1', () => {
+  for (const directory of ['src', 'public']) {
+    watch(new URL(`../${directory}/`, import.meta.url), { recursive: true }, scheduleBuild);
+  }
+  console.log(`Local preview http://127.0.0.1:${server.address().port}`);
+  void rebuild();
+});

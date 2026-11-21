@@ -1,0 +1,41 @@
+# nilmail
+
+A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API directly, and a Cloudflare Worker that only handles Google sign-in. The interface, code, comments and docs are American English.
+
+## Commands
+
+- `npm run dev`: local server with live reload on http://127.0.0.1:4173 (`NILMAIL_PORT` changes the port). Signing in needs `.dev.vars`; see `docs/setup.md`.
+- `npm run format`: Prettier; `npm run lint` fails on unformatted files.
+- `npm run lint`, `npm run typecheck`, `npm test`: run all three before committing; CI runs them on every pull request.
+- `npm run test:e2e`: browser walkthrough against a fake Gmail, run after UI or flow changes; it needs Chrome (or `NILMAIL_CHROME`). Screenshots land in `test/e2e/screenshots/`.
+- `npm run build:pages`: the bundle CI deploys.
+- `npm run icons`: renders the PNG icons from `public/icon.svg`.
+
+## Layout
+
+- `src/core/`: platform-neutral types and rules. Imports nothing from `web` or `worker`.
+  - `actions.ts`: what actions change in Gmail, and their undo.
+  - `deck.ts`: the deck reducer and batch loading.
+  - `message.ts`: Gmail threads to cards and read-view messages.
+  - `settings.ts`, `gmail.ts`, `types.ts`.
+- `src/worker/`: the Worker entry (`index.ts`) and the sign-in routes (`auth.ts`).
+- `src/web/`: the React app.
+  - `App.tsx`: sign-in state.
+  - `Sorter.tsx`: the sorting screen, wiring the deck to Gmail.
+  - `gmail-http.ts`: the Gmail client.
+  - `session.ts`: access tokens.
+  - `components/`: the swipe card, mail card, read view and settings.
+- `test/`: unit tests (`*.test.ts`) and the end-to-end walkthrough (`e2e/`, with `fake-gmail.ts`).
+- `scripts/`: the esbuild build, the dev server and the icon renderer. `public/`: static files and the service worker.
+
+## Rules that are easy to break
+
+- **Mail never passes through the Worker.** The Worker only exchanges and renews tokens. Gmail calls go from the browser to `gmail.googleapis.com`. Do not add routes that proxy or store mail.
+- **Gmail changes go through `stepsFor` and `undoSteps`.** An action removes only labels the thread has, so its undo restores the thread exactly. Cover new actions in `test/actions.test.ts`.
+- **One Gmail change at a time.** `Sorter` sends every change through its queue, so an undo cannot overtake the change it undoes. Do not call `applyToGmail` outside it.
+- **The deck reducer is the only place cards move.** Screens dispatch `DeckEvent`s. Cover reducer changes in `test/deck.test.ts`.
+- **Email HTML stays sandboxed.** `MessageBody` renders it in an iframe without `allow-scripts`, with a content security policy that blocks scripts and, unless images are allowed, remote images. The frame has `allow-same-origin` only so the page can size it. Never add `allow-scripts` while `allow-same-origin` is there.
+- **The permission is `gmail.modify`.** It can read, label, archive and move to the Bin, but not delete permanently. Asking for more needs a new consent from the user, and a restricted scope beyond it would not change what Personal mode allows.
+- **Sign-in cookies.** The session cookie is `nilmail_session` (path `/api`, SameSite=Strict); the sign-in state cookie is `nilmail_state` (path `/api/auth`, SameSite=Lax, since Google's redirect back is a cross-site navigation). Changing `SESSION_KEY` signs every device out.
+- **Saved settings.** They live in `localStorage` under `nilmail.settings.v1` and pass through `restoreSettings`. Changing their shape needs a new key or handling in `restoreSettings`.
+- **TypeScript 6.** typescript-eslint does not support TypeScript 7 yet; keep `typescript` on 6.x until it does.

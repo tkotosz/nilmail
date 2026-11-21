@@ -1,0 +1,96 @@
+import type { Gmail, GmailThread } from '../core/gmail.ts';
+import { SessionError, type Session } from './session.ts';
+
+// The Gmail API over HTTP, called straight from the browser with the session's access token.
+// https://developers.google.com/workspace/gmail/api/reference/rest
+
+const base = 'https://gmail.googleapis.com/gmail/v1/users/me';
+
+export class GmailError extends Error {
+  /** The HTTP status, or 0 when Gmail could not be reached. */
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export interface WebGmail extends Gmail {
+  /** Unread conversations in the inbox. */
+  unreadInInbox(): Promise<number>;
+  emailAddress(): Promise<string>;
+}
+
+export function httpGmail(session: Session): WebGmail {
+  async function call<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+    const send = async (token: string) => {
+      try {
+        return await fetch(`${base}${path}`, {
+          method: init.method ?? 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            ...(init.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          },
+          body: init.body === undefined ? undefined : JSON.stringify(init.body),
+        });
+      } catch {
+        throw new GmailError(0, 'Gmail could not be reached.');
+      }
+    };
+    let response = await send(await session.accessToken());
+    // The token can expire or be revoked between two requests: ask for a new one once.
+    if (response.status === 401) response = await send(await session.accessToken(true));
+    if (response.status === 401) throw new SessionError('signed-out');
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      throw new GmailError(response.status, body?.error?.message ?? `Gmail answered ${response.status}.`);
+    }
+    const text = await response.text();
+    return (text ? JSON.parse(text) : null) as T;
+  }
+
+  return {
+    async listThreads(query, pageToken) {
+      const params = new URLSearchParams({ q: query, maxResults: '50' });
+      if (pageToken) params.set('pageToken', pageToken);
+      const page = await call<{ threads?: { id: string }[]; nextPageToken?: string }>(`/threads?${params}`);
+      return { ids: (page.threads ?? []).map(thread => thread.id), nextPageToken: page.nextPageToken };
+    },
+    getThread(id, format) {
+      const params = new URLSearchParams({ format });
+      if (format === 'metadata') for (const name of ['From', 'Subject', 'Date']) params.append('metadataHeaders', name);
+      return call<GmailThread>(`/threads/${encodeURIComponent(id)}?${params}`);
+    },
+    async modifyThread(id, add, remove) {
+      await call(`/threads/${encodeURIComponent(id)}/modify`, {
+        method: 'POST',
+        body: { addLabelIds: add, removeLabelIds: remove },
+      });
+    },
+    async trashThread(id) {
+      await call(`/threads/${encodeURIComponent(id)}/trash`, { method: 'POST' });
+    },
+    async untrashThread(id) {
+      await call(`/threads/${encodeURIComponent(id)}/untrash`, { method: 'POST' });
+    },
+    async unreadInInbox() {
+      return (await call<{ threadsUnread?: number }>('/labels/INBOX')).threadsUnread ?? 0;
+    },
+    async emailAddress() {
+      return (await call<{ emailAddress: string }>('/profile')).emailAddress;
+    },
+  };
+}
+
+/** Opens the conversation in Gmail: the Gmail app on Android when it handles Gmail links, the website otherwise. */
+export const gmailLink = (email: string, threadId: string) =>
+  `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#all/${encodeURIComponent(threadId)}`;
+
+/** A sentence for the user about a failed Gmail call. */
+export function problemText(error: unknown): string {
+  if (error instanceof GmailError && error.status === 0) return 'Gmail could not be reached. Check your connection.';
+  if (error instanceof GmailError && error.status === 429) return 'Gmail asks to slow down. Try again in a minute.';
+  if (error instanceof GmailError && error.status === 404) return 'That conversation no longer exists in Gmail.';
+  if (error instanceof SessionError && error.code === 'offline') return 'You are offline.';
+  return 'Gmail refused the change. Try again.';
+}
