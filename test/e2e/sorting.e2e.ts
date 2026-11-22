@@ -116,7 +116,7 @@ test('swiping right archives the newest unread thread, and undo puts it back', a
   assert.equal(await topSubject(page), 'Message number 2');
   await page.getByText('11 unread').waitFor();
 
-  await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await settle(gmail, 2);
   assert.deepEqual(gmail.changes[1], { thread: 'thread000', op: 'modify', add: ['INBOX', 'UNREAD'], remove: [] });
   assert.equal(await topSubject(page), 'Message number 1');

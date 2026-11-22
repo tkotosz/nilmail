@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
-import { Inbox, RefreshCw, Settings as SettingsIcon, Share, Undo2 } from 'lucide-react';
+import { Inbox, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
 import { actionLabels, applySteps, stepsFor, undoSteps } from '../core/actions.ts';
 import { emptyDeck, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyToGmail } from '../core/gmail.ts';
@@ -179,16 +179,6 @@ export function Sorter({
         </span>
         <div className="top-actions">
           <InstallButton onAppleHelp={() => setDialog('install')} />
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => undo()}
-            disabled={!lastDecision}
-            aria-label="Undo"
-            title="Undo (Ctrl+Z)"
-          >
-            <Undo2 size={21} />
-          </button>
           <button
             type="button"
             className="icon-button"

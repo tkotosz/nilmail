@@ -18,7 +18,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
 
   The same actions are on the buttons under the card and on the arrow keys.
 - **The remaining actions** without a swipe appear as small buttons on the card: Mark read and Reply by default. Reply opens the conversation in Gmail.
-- **Undo** reverses any of the last 20 actions in Gmail. Use the bar that appears after each action, the header button, or Ctrl+Z.
+- **Undo** reverses any of the last 20 actions in Gmail. Use the bar that appears after each action, or Ctrl+Z.
 - **Private by design.** Mail goes straight from Gmail to your device. The server part only renews the sign-in and stores nothing.
 
 ## Running it
