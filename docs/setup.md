@@ -156,8 +156,8 @@ Open the production address in Chrome on Android, sign in, then **⋮ → Add to
 ## Sharing with people you know
 
 To invite someone:
-1. Add their address to `ALLOWED_EMAILS`, in both environments.
-2. Redeploy both, as described in step 4.
+1. Add their address to `ALLOWED_EMAILS` in Production. Preview's list can stay yours alone, unless someone should try the preview address too.
+2. Redeploy production: **Actions → Deploy → Run workflow → production** (see step 4).
 3. Send them the link with a note like this:
 
 > nilmail sorts your Gmail inbox with swipes. When you sign in, Google first asks which account to use, then asks for Gmail access. Google warns that the app isn't verified, because it's a small private app: if it shows a full warning page, click **Advanced → Go to nilmail (unsafe)**. Then tick the Gmail permission. Google describes it as reading, writing and sending email; nilmail only reads, archives, marks read and moves to the Bin. Your mail goes straight from Gmail to your phone or browser; nothing is stored on a server. You can remove its access any time at myaccount.google.com/permissions.
