@@ -104,16 +104,19 @@ To check the allow-list, sign in once with a Google account that is not on it: n
 
 ## 4. Cloudflare Pages project
 
-1. Create the project, with `main` as its production branch:
+1. Create a **Direct Upload** Pages project in the Cloudflare dashboard:
+   1. **Workers & Pages → Create application**. Everything on that page creates a Cloudflare Workers project. Instead, click the link at the bottom: **"Need to use the legacy Pages workflow? Continue to Pages"**.
+   2. Choose direct upload ("Upload assets"), name the project `<project>` and click **Create project**. You can leave the upload page: the first deploy fills the project.
+   3. In the project's **Settings**, make sure the production branch is `main`.
 
-   ```sh
-   PROJECT=nilmail-yourname   # your <project>
-   npx wrangler pages project create $PROJECT --production-branch=main
-   ```
+   Don't use `wrangler pages project create`: recent Wrangler versions turn it into a Workers project unless forced.
+
+   Cloudflare has folded Pages into Workers and calls Pages "legacy" since autumn 2026. Existing Pages projects keep working, and nilmail's build and deploy are written for Pages.
 
 2. Add the four values as secrets for both environments:
 
    ```sh
+   PROJECT=nilmail   # your <project>
    for name in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SESSION_KEY ALLOWED_EMAILS; do
      npx wrangler pages secret put $name --project-name $PROJECT
      npx wrangler pages secret put $name --project-name $PROJECT --env preview
