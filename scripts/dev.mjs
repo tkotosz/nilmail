@@ -11,9 +11,13 @@ let timer;
 let building = false;
 let rebuildQueued = false;
 
-/** The Worker's secrets for local use, from `.dev.vars` (KEY=value lines, git-ignored), as Wrangler reads them. */
+/**
+ * The Worker's secrets for local use, from `.dev.vars` (KEY=value lines, git-ignored), as Wrangler reads them.
+ * `NILMAIL_DEV_VARS` points elsewhere; the end-to-end tests point it at nothing, to run without any secrets.
+ */
 async function readDevVars() {
-  const text = await readFile(new URL('../.dev.vars', import.meta.url), 'utf8').catch(() => '');
+  const file = process.env.NILMAIL_DEV_VARS ?? new URL('../.dev.vars', import.meta.url);
+  const text = await readFile(file, 'utf8').catch(() => '');
   const vars = {};
   for (const line of text.split('\n')) {
     const match = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*"?(.*?)"?\s*$/.exec(line);

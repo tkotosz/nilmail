@@ -14,7 +14,11 @@ let server: ChildProcess;
 let browser: Browser;
 
 before(async () => {
-  server = spawn(process.execPath, ['scripts/dev.mjs'], { env: { ...process.env, NILMAIL_PORT: String(port) }, stdio: 'ignore' });
+  // NILMAIL_DEV_VARS points at nothing, so the server runs without the developer's sign-in secrets.
+  server = spawn(process.execPath, ['scripts/dev.mjs'], {
+    env: { ...process.env, NILMAIL_PORT: String(port), NILMAIL_DEV_VARS: '/nonexistent/nilmail.dev.vars' },
+    stdio: 'ignore',
+  });
   for (let attempt = 0; attempt < 100; attempt++) {
     const response = await fetch(base).catch(() => null);
     if (response?.ok) break;
@@ -30,12 +34,13 @@ after(async () => {
   server?.kill();
 });
 
-async function open(gmail: FakeGmail | null, { width = 390, height = 844 } = {}) {
+async function open(gmail: FakeGmail | null, { width = 390, height = 844, userAgent = undefined as string | undefined } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
     locale: 'en-GB',
     timezoneId: 'Europe/Budapest',
-    hasTouch: false,
+    hasTouch: Boolean(userAgent),
+    ...(userAgent ? { userAgent } : {}),
   });
   const page = await context.newPage();
   const errors: string[] = [];
@@ -249,4 +254,33 @@ test('sorting everything ends at inbox zero, and a long inbox keeps loading', as
   assert.equal(gmail.changes.length, 21);
   assert.deepEqual(errors, []);
   await page.context().close();
+});
+
+test("Install: hidden without an offer, one tap with Chrome's offer, instructions on an iPhone", async () => {
+  const { page, errors } = await open(new FakeGmail(sampleThreads(2)));
+  await waitForCard(page);
+  const install = page.getByRole('button', { name: 'Install app' });
+  assert.equal(await install.count(), 0, 'no button before the browser offers installing');
+
+  // Chrome's offer, as Chrome sends it once the site has been used for a while.
+  await page.evaluate(() => {
+    const offer = new Event('beforeinstallprompt', { cancelable: true }) as Event & { prompt(): Promise<void> };
+    offer.prompt = async () => void ((window as Window & { prompted?: boolean }).prompted = true);
+    window.dispatchEvent(offer);
+  });
+  await install.click();
+  assert.equal(await page.evaluate(() => (window as Window & { prompted?: boolean }).prompted), true);
+  await install.waitFor({ state: 'detached' });
+  await page.context().close();
+
+  const iphone =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  const apple = await open(new FakeGmail(sampleThreads(2)), { userAgent: iphone });
+  await waitForCard(apple.page);
+  await apple.page.getByRole('button', { name: 'Install app' }).click();
+  const dialog = apple.page.getByRole('dialog', { name: 'Install nilmail' });
+  await dialog.getByText('Add to Home Screen').waitFor();
+  await apple.page.screenshot({ path: `${screenshots}install-iphone.png` });
+  await apple.page.context().close();
+  assert.deepEqual([...errors, ...apple.errors], []);
 });

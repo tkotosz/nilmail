@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
-import { Inbox, RefreshCw, Settings as SettingsIcon, Undo2 } from 'lucide-react';
+import { Inbox, RefreshCw, Settings as SettingsIcon, Share, Undo2 } from 'lucide-react';
 import { actionLabels, applySteps, stepsFor, undoSteps } from '../core/actions.ts';
 import { emptyDeck, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyToGmail } from '../core/gmail.ts';
@@ -178,7 +178,7 @@ export function Sorter({
           {unread === null ? '' : `${unread} unread`}
         </span>
         <div className="top-actions">
-          <InstallButton onHelp={() => setDialog('install')} />
+          <InstallButton onAppleHelp={() => setDialog('install')} />
           <button
             type="button"
             className="icon-button"
@@ -330,15 +330,17 @@ export function Sorter({
 
       {dialog === 'install' && (
         <Modal name="Install nilmail" onClose={() => setDialog(null)}>
-          <p>
-            <strong>Android, Chrome:</strong> open the ⋮ menu and choose <em>Add to Home screen</em> or <em>Install app</em>.
-          </p>
-          <p>
-            <strong>iPhone, Safari:</strong> tap Share, then <em>Add to Home Screen</em>.
-          </p>
-          <p>
-            <strong>Computer, Chrome or Edge:</strong> click the install icon at the right end of the address bar.
-          </p>
+          <ol className="install-steps">
+            <li>
+              Tap <strong>Share</strong> <Share size={16} aria-label="(the square with an arrow)" /> in the browser's toolbar.
+            </li>
+            <li>
+              Choose <strong>Add to Home Screen</strong>. You may need to scroll down, or tap <strong>More</strong>, to see it.
+            </li>
+            <li>
+              Tap <strong>Add</strong>. nilmail then opens from your Home Screen like an app.
+            </li>
+          </ol>
         </Modal>
       )}
     </div>

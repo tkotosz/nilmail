@@ -553,6 +553,17 @@ dialog::backdrop {
   top: 12px;
   right: 12px;
 }
+.install-steps {
+  margin: 12px 0 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  line-height: 1.45;
+}
+.install-steps svg {
+  vertical-align: -3px;
+}
 .modal-actions {
   display: flex;
   justify-content: flex-end;
