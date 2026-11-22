@@ -236,6 +236,34 @@ test('a change Gmail refuses puts the card back with a message', async () => {
   await page.context().close();
 });
 
+test('Refresh starts again from the newest thread, brings back skipped ones, and keeps undo', async () => {
+  const gmail = new FakeGmail(sampleThreads(8));
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('status').filter({ hasText: 'Skipped' }).waitFor();
+  assert.equal(await topSubject(page), 'Message number 3');
+  await settle(gmail, 1);
+
+  const [arrived] = sampleThreads(1, Date.UTC(2026, 10, 21, 12));
+  gmail.threads.set('thread-new', { ...arrived!, id: 'thread-new', subject: 'Just arrived' });
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Just arrived');
+  await page.getByText('8 unread').waitFor();
+
+  await page.keyboard.press('Control+z');
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 2');
+  await page.keyboard.press('Control+z');
+  await settle(gmail, 2);
+  assert.deepEqual(gmail.changes[1], { thread: 'thread000', op: 'modify', add: ['INBOX', 'UNREAD'], remove: [] });
+  assert.equal(await topSubject(page), 'Message number 1');
+  await page.getByText('9 unread').waitFor();
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('sorting everything ends at inbox zero, and a long inbox keeps loading', async () => {
   const gmail = new FakeGmail(sampleThreads(22));
   const { page, errors } = await open(gmail);

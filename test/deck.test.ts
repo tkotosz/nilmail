@@ -35,6 +35,21 @@ test('a batch adds only threads the deck has not seen since the last reload', ()
   );
 });
 
+test('a reload keeps the decisions undoable, and an undone thread does not come back a second time', () => {
+  let state = loaded(emptyDeck, ['a', 'b']);
+  state = reduceDeck(state, { type: 'decided', id: 1, card: card('a'), action: 'archive', undo: [] });
+  state = reduceDeck(state, { type: 'reset' });
+  assert.deepEqual(state.cards, []);
+  assert.equal(state.history.length, 1);
+  state = loaded(state, ['b']);
+  state = reduceDeck(state, { type: 'undone', id: 1 });
+  state = loaded(state, ['a', 'b']);
+  assert.deepEqual(
+    state.cards.map(item => item.threadId),
+    ['a', 'b'],
+  );
+});
+
 test('a decision leaves the deck, and undo or a failure in Gmail puts it back on top', () => {
   let state = loaded(emptyDeck, ['a', 'b', 'c']);
   state = reduceDeck(state, { type: 'decided', id: 1, card: card('b'), action: 'archive', undo: [] });

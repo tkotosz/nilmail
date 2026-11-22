@@ -41,6 +41,7 @@ export type DeckEvent =
   | { type: 'undoFailed'; decision: Decision }
   /** The card changed in place, for example after the read view marked it read. */
   | { type: 'cardChanged'; card: MailCard }
+  /** Starts the deck again from the newest thread, skipped ones included. */
   | { type: 'reset' };
 
 const withoutCard = (cards: MailCard[], threadId: string) => cards.filter(card => card.threadId !== threadId);
@@ -72,6 +73,8 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
       return {
         ...state,
         cards: [decision.card, ...withoutCard(state.cards, decision.card.threadId)],
+        // A reload since the decision forgot the thread, so a later batch would bring it in a second time.
+        seen: new Set(state.seen).add(decision.card.threadId),
         history: state.history.filter(item => item.id !== event.id),
       };
     }
@@ -84,7 +87,8 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
     case 'cardChanged':
       return { ...state, cards: state.cards.map(card => (card.threadId === event.card.threadId ? event.card : card)) };
     case 'reset':
-      return emptyDeck;
+      // The decisions stay undoable: their changes in Gmail still stand.
+      return { ...emptyDeck, history: state.history };
   }
 }
 

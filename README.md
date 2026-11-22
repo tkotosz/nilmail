@@ -10,6 +10,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
   - It holds unread inbox conversations, newest first. The Gmail search that fills it can be changed in settings.
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.
   - A counter shows how many unread conversations are left in the inbox.
+  - Refresh, in the header, starts again from the newest conversation and brings back skipped ones.
 - **Four swipes, four actions.** Each direction has an action you choose in settings. The defaults are:
   - right: Archive (also marks it read)
   - left: Delete (moves it to the Bin)

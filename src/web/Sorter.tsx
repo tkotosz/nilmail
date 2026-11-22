@@ -179,6 +179,9 @@ export function Sorter({
         </span>
         <div className="top-actions">
           <InstallButton onAppleHelp={() => setDialog('install')} />
+          <button type="button" className="icon-button" onClick={reload} aria-label="Refresh" title="Refresh">
+            <RefreshCw size={21} />
+          </button>
           <button
             type="button"
             className="icon-button"
