@@ -16,7 +16,12 @@ let browser: Browser;
 before(async () => {
   // NILMAIL_DEV_VARS points at nothing, so the server runs without the developer's sign-in secrets.
   server = spawn(process.execPath, ['scripts/dev.mjs'], {
-    env: { ...process.env, NILMAIL_PORT: String(port), NILMAIL_DEV_VARS: '/nonexistent/nilmail.dev.vars' },
+    env: {
+      ...process.env,
+      NILMAIL_PORT: String(port),
+      NILMAIL_DEV_VARS: '/nonexistent/nilmail.dev.vars',
+      NILMAIL_VERSION: 'v9.9.9',
+    },
     stdio: 'ignore',
   });
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -104,6 +109,7 @@ test('swiping right archives the newest unread thread, and undo puts it back', a
   await waitForCard(page);
   assert.equal(await topSubject(page), 'Message number 1');
   await page.getByText('12 unread').waitFor();
+  assert.equal(await page.locator('.app-version').textContent(), 'v9.9.9', 'the build puts its version under the logo');
   await page.screenshot({ path: `${screenshots}deck.png` });
 
   await drag(page, 320, 10, async page => {

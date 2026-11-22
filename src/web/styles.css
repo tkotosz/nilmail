@@ -229,6 +229,21 @@ svg {
 .brand img {
   border-radius: 8px;
 }
+.brand-name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.app-version {
+  max-width: 9rem;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .unread-count {
   color: var(--muted);
   font-size: 0.9rem;

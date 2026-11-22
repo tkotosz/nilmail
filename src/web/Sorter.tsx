@@ -16,6 +16,7 @@ import { useSwipeKeys } from './components/useSwipeKeys.ts';
 import { gmailLink, problemText, type WebGmail } from './gmail-http.ts';
 import { SessionError } from './session.ts';
 import { loadSettings, saveSettings } from './storage.ts';
+import { appVersion } from './version.ts';
 
 interface Toast {
   id: number;
@@ -172,7 +173,12 @@ export function Sorter({
       <header className="top-bar">
         <div className="brand">
           <img src="/icon.svg" alt="" width={30} height={30} />
-          <span>nilmail</span>
+          <span className="brand-name">
+            nilmail
+            <small className="app-version" title={appVersion}>
+              {appVersion}
+            </small>
+          </span>
         </div>
         <span className="unread-count" aria-live="polite">
           {unread === null ? '' : `${unread} unread`}

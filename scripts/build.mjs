@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { compileFunction } from 'node:vm';
@@ -11,6 +12,22 @@ const contentTypes = {
   png: 'image/png',
   svg: 'image/svg+xml',
 };
+
+/**
+ * The label the app shows under its logo. Deploys pass it in `NILMAIL_VERSION` (the release tag, or the commit for the
+ * preview), as their checkout has no branch. A local build names the current branch and commit.
+ */
+function versionLabel() {
+  if (process.env.NILMAIL_VERSION) return process.env.NILMAIL_VERSION;
+  const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  try {
+    const commit = git('rev-parse', '--short', 'HEAD');
+    const branch = git('branch', '--show-current');
+    return branch ? `${branch} · ${commit}` : commit;
+  } catch {
+    return 'dev';
+  }
+}
 
 async function buildAssets() {
   const assets = {};
@@ -28,7 +45,7 @@ async function buildAssets() {
     charset: 'utf8',
     jsx: 'automatic',
     target: ['safari16.4', 'chrome110'],
-    define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+    define: { 'process.env.NODE_ENV': JSON.stringify('production'), NILMAIL_VERSION: JSON.stringify(versionLabel()) },
   });
 
   const script = client.outputFiles.find(file => file.path.endsWith('.js'));

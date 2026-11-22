@@ -8,7 +8,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 - `npm run format`: Prettier; `npm run lint` fails on unformatted files.
 - `npm run lint`, `npm run typecheck`, `npm test`: run all three before committing; CI runs them on every pull request.
 - `npm run test:e2e`: browser walkthrough against a fake Gmail, run after UI or flow changes; it needs Chrome (or `NILMAIL_CHROME`). Screenshots land in `test/e2e/screenshots/`.
-- `npm run build:pages`: the bundle CI deploys.
+- `npm run build:pages`: the bundle CI deploys. The label under the logo comes from `NILMAIL_VERSION` (the deploy sets the release tag or the commit); without it, a build uses the current branch and commit.
 - `npm run icons`: renders the PNG icons from `public/icon.svg`.
 
 ## Layout
