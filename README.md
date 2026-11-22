@@ -2,7 +2,7 @@
 
 Sort your Gmail inbox one swipe at a time. nilmail shows your unread inbox conversations as a deck of cards, and every swipe does something in Gmail.
 
-It runs in the browser on a computer and installs as an app on Android. It works for a single Google account: the one that owns its Google login client.
+It runs in the browser on a computer and installs as an app on Android. It is a private app: only the Google accounts on its allow-list can sign in.
 
 ## What it does
 

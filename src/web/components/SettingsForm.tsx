@@ -108,6 +108,9 @@ export function SettingsForm({
         <button type="button" className="quiet-button" onClick={onSignOut}>
           <LogOut size={16} aria-hidden="true" /> Sign out
         </button>
+        <a href="/privacy" target="_blank" rel="noopener">
+          Privacy policy
+        </a>
       </div>
     </form>
   );

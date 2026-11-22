@@ -14,8 +14,7 @@ const contentTypes = {
 
 async function buildAssets() {
   const assets = {};
-  function addAsset(path, data) {
-    const ext = path === '/' ? 'html' : path.split('.').at(-1);
+  function addAsset(path, data, ext = path === '/' ? 'html' : path.split('.').at(-1)) {
     assets[path] = [contentTypes[ext], Buffer.from(data).toString('base64')];
   }
 
@@ -41,7 +40,10 @@ async function buildAssets() {
 
   for (const name of await readdir('public')) {
     if (name === 'index.html' || name === 'sw.js') continue;
-    addAsset(`/${name}`, await readFile(`public/${name}`));
+    const data = await readFile(`public/${name}`);
+    addAsset(`/${name}`, data);
+    // Cloudflare Pages serves page.html at /page as well; the local server does the same through this alias.
+    if (name.endsWith('.html')) addAsset(`/${name.slice(0, -'.html'.length)}`, data, 'html');
   }
 
   const index = (await readFile('public/index.html', 'utf8')).replace('%SCRIPT%', scriptPath).replace('%STYLE%', stylePath);
@@ -100,7 +102,8 @@ if (import.meta.main) {
   if (pages) {
     await mkdir(new URL('assets/', output), { recursive: true });
     for (const [path, [, content]] of Object.entries(assets)) {
-      if (path !== '/') await writeFile(new URL(path.slice(1), output), Buffer.from(content, 'base64'));
+      // Paths without an extension are the local server's aliases; Pages serves those itself.
+      if (path !== '/' && path.includes('.')) await writeFile(new URL(path.slice(1), output), Buffer.from(content, 'base64'));
     }
     await cp('cloudflare/pages', output, { recursive: true });
   } else {

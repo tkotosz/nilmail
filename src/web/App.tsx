@@ -12,6 +12,7 @@ const signInProblems: Record<string, string> = {
   expired: 'The sign-in took too long. Try again.',
   failed: 'Google did not complete the sign-in. Try again.',
   permission: 'nilmail needs the Gmail permission to sort your mail. Tick it on the Google screen.',
+  'not-allowed': 'This nilmail is private. Ask its owner to add your Google account.',
 };
 
 function takeSignInProblem(): string | null {
@@ -31,9 +32,12 @@ function Welcome({ problem, notice, onRetry }: { problem: SessionProblem; notice
       <p className="tagline">Sort your Gmail inbox one swipe at a time.</p>
       {notice && <p className="welcome-notice">{notice}</p>}
       {problem === 'signed-out' && (
-        <a className="button primary" href="/api/auth/start">
-          <LogIn size={18} aria-hidden="true" /> Sign in with Google
-        </a>
+        <>
+          <a className="button primary" href="/api/auth/start">
+            <LogIn size={18} aria-hidden="true" /> Sign in with Google
+          </a>
+          <p className="welcome-small">Private app: only invited Google accounts can sign in.</p>
+        </>
       )}
       {problem === 'not-configured' && (
         <p className="welcome-notice">Sign-in is not set up on this server yet. See docs/setup.md.</p>
@@ -48,7 +52,10 @@ function Welcome({ problem, notice, onRetry }: { problem: SessionProblem; notice
           </button>
         </>
       )}
-      <p className="welcome-small">Your mail goes straight from Gmail to this device. nilmail keeps nothing on a server.</p>
+      <p className="welcome-small">
+        Your mail goes straight from Gmail to this device. nilmail keeps nothing on a server.{' '}
+        <a href="/privacy">Privacy policy</a>
+      </p>
     </main>
   );
 }

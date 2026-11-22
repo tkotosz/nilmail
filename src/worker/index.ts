@@ -25,6 +25,7 @@ export default {
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'no-referrer',
       'X-Frame-Options': 'DENY',
+      'X-Robots-Tag': 'noindex, nofollow',
     };
     return new Response(request.method === 'HEAD' ? null : decodedBytes(value), { headers });
   },

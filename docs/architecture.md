@@ -32,12 +32,14 @@ browser                                              Cloudflare
 ## Worker
 
 `src/worker/auth.ts` serves four routes:
-- `GET /api/auth/start` sends the browser to Google's consent screen with offline access to Gmail.
-- `GET /api/auth/callback` trades the code for a refresh token and stores it, AES-GCM encrypted, in an HttpOnly cookie.
-- `POST /api/auth/token` turns that cookie into a one-hour access token.
+- `GET /api/auth/start` begins the first of two trips to Google, which asks only for the account's address.
+- `GET /api/auth/callback` ends either trip; the state, matched against a cookie, says which.
+  - After the first trip it reads the verified address from the ID token, withdraws that basic permission, and sends only an address on the allow-list on to the second trip, for offline access to Gmail.
+  - After the second trip it checks the address again and stores it with the refresh token, AES-GCM encrypted, in an HttpOnly cookie. An account switched on the way gets its token revoked instead.
+- `POST /api/auth/token` checks the address against the allow-list again and turns the cookie into a one-hour access token.
 - `POST /api/auth/logout` revokes the token at Google and clears the cookie.
 
-The Worker stores nothing and never sees mail.
+The Worker stores nothing and never sees mail. The allow-list comes from the `ALLOWED_EMAILS` secret; without it nobody can sign in.
 
 `src/worker/index.ts` routes requests and, in local development, serves the embedded static files.
 
@@ -56,7 +58,7 @@ The read view renders HTML email in a sandboxed frame with no scripts and a rest
 
 ## Key decisions
 
-- **Personal-mode Google client.** Only the owner's account can sign in, with no Google review and no 7-day token expiry; opening the app to others would need a different client type and Google's verification.
+- **An unverified Google client and an allow-list.** Google allows an unverified app with restricted scopes for fewer than 100 people known to the developer, as personal use; the allow-list in the Worker keeps it to those people, checked at sign-in and at every renewal so removing someone takes effect within the hour. Sign-in asks for the address before asking for Gmail, so people not on the list never see the unverified-app warning and never count toward Google's limit of 100 accounts. A Personal-mode client works too, for one person. Growing beyond 100 users needs Google's verification and a yearly security assessment.
 - **A Worker for tokens only.** Google issues refresh tokens only to a server holding the client secret; keeping the token in an encrypted cookie avoids a database, and Gmail calls go straight from the browser so mail never passes through Cloudflare.
 - **Conversations, not messages.** Gmail's inbox is a list of threads, so every action applies to the whole thread.
 - **Optimistic decisions, one Gmail change at a time.** The deck reacts at once; the queue keeps an undo from overtaking the change it undoes.

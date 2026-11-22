@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>nilmail privacy policy</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        color: #1f2430;
+        background: #f5f3ee;
+      }
+      body {
+        margin: 0;
+        padding: 32px 18px 48px;
+        line-height: 1.6;
+      }
+      main {
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+      header img {
+        border-radius: 10px;
+      }
+      h1 {
+        font-size: 1.7rem;
+        margin: 0;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin: 28px 0 6px;
+      }
+      p,
+      ul {
+        margin: 0 0 10px;
+      }
+      .updated {
+        color: #5f6573;
+        font-size: 0.9rem;
+      }
+      blockquote {
+        margin: 12px 0;
+        padding: 10px 14px;
+        background: #fff;
+        border-left: 4px solid #ec4b2f;
+        border-radius: 6px;
+      }
+      a {
+        color: #c93a21;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/icon.svg" alt="" width="44" height="44" />
+        <h1>nilmail privacy policy</h1>
+      </header>
+      <p class="updated">Last updated 22 November 2026</p>
+
+      <p>
+        nilmail is a small private app for sorting a Gmail inbox with swipes. Its owner runs it for themselves and a few people
+        they invite. This page explains what it does with your data.
+      </p>
+
+      <h2>What nilmail can access</h2>
+      <p>When you sign in with Google and agree, nilmail gets:</p>
+      <ul>
+        <li>your Google account's email address, to check that you are invited;</li>
+        <li>
+          access to your Gmail (Google's <code>gmail.modify</code> permission), to show your unread conversations and to archive
+          them, mark them read or move them to the Bin when you swipe. It cannot delete mail permanently. Google describes this
+          permission as reading, writing and sending email; it is the narrowest one that allows archiving, but nilmail never
+          writes or sends email.
+        </li>
+      </ul>
+
+      <h2>Where your mail goes</h2>
+      <ul>
+        <li>
+          Your browser fetches your mail directly from Google and shows it on your device. Your mail is never sent to nilmail's
+          server or stored anywhere else.
+        </li>
+        <li>Your settings, such as what each swipe does, are saved in your browser only.</li>
+        <li>nilmail has no analytics, no trackers and no ads.</li>
+      </ul>
+
+      <h2>What the server handles</h2>
+      <p>
+        nilmail runs on Cloudflare. Its server part only keeps you signed in. After you sign in, your browser holds a cookie with
+        your email address and your Google sign-in, encrypted so that only nilmail's server can read it. About once an hour, your
+        browser sends that cookie to the server. The server uses it to get a fresh one-hour access key from Google and passes the
+        key back to your browser. Nothing is written to a database or stored on the server.
+      </p>
+
+      <h2>Images in emails</h2>
+      <p>
+        When an email contains pictures from the internet, nilmail loads them while you read the email, unless you turn that off
+        in Settings. As in any mail app, the sender can then see that the email was opened.
+      </p>
+
+      <h2>Sharing</h2>
+      <p>
+        nilmail does not sell, share or transfer your data to anyone, and does not use it for advertising. Nobody reads your mail.
+      </p>
+      <blockquote>
+        nilmail's use and transfer to any other app of information received from Google APIs will adhere to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+        including the Limited Use requirements.
+      </blockquote>
+
+      <h2>Removing access</h2>
+      <p>
+        Choose <strong>Sign out</strong> in nilmail's settings: this withdraws nilmail's access at Google and deletes the cookie.
+        You can also remove nilmail any time at
+        <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Your browser's saved settings go
+        away when you clear the site's data.
+      </p>
+
+      <h2>Questions</h2>
+      <p>Ask the person who invited you to nilmail.</p>
+
+      <p><a href="/">Back to nilmail</a></p>
+    </main>
+  </body>
+</html>

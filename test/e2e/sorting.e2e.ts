@@ -81,6 +81,10 @@ test('without a server secret the app says sign-in is not set up; signed out it 
   assert.equal(await signIn.getAttribute('href'), '/api/auth/start');
   await page.getByText('nilmail needs the Gmail permission').waitFor();
   assert.equal(new URL(page.url()).search, '', 'the sign-in problem is removed from the address');
+  await page.getByText('Private app: only invited Google accounts can sign in.').waitFor();
+
+  await page.goto(`${base}?signin=not-allowed`);
+  await page.getByText('This nilmail is private. Ask its owner to add your Google account.').waitFor();
   await page.screenshot({ path: `${screenshots}signin.png` });
   await page.context().close();
   assert.deepEqual(
