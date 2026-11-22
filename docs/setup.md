@@ -125,6 +125,10 @@ To check the allow-list, sign in once with a Google account that is not on it: n
 
    The dashboard works too: **Workers & Pages → <project> → Settings → Variables and Secrets**, once for Production and once for Preview.
 
+   Store the client ID, the client secret and the session key as **secrets**. `ALLOWED_EMAILS` can be plain text, so the list stays readable and editable in the dashboard.
+
+   The repository deliberately has no `wrangler.jsonc`. With one, that file would be the source of truth for the project's plain-text variables, and the dashboard's would never reach the Function.
+
 Cloudflare Pages applies changed secrets to new deployments only. After changing one, such as adding someone to `ALLOWED_EMAILS`, redeploy: re-run the Deploy workflow, or **Retry deployment** on the latest deployment in the dashboard.
 
 ## 5. GitHub
