@@ -5,7 +5,14 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  # Run by hand from the Actions page, for example to apply changed Cloudflare variables.
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'preview: deploy main to the preview address. production: deploy the latest release again.'
+        type: choice
+        options: [preview, production]
+        default: preview
   release:
     types: [published]
 
@@ -14,14 +21,38 @@ permissions:
 
 jobs:
   check:
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    if: >-
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.target != 'production' && github.ref == 'refs/heads/main')
     uses: ./.github/workflows/ci.yml
+
+  # A manual production deploy uploads the latest release again, never unreleased commits on main. That release passed
+  # its checks when it was published.
+  latest-release:
+    name: Find the latest release
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.latest.outputs.sha }}
+    steps:
+      - id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName); then
+            echo '::error::There is no release yet. Publish one first; it deploys production by itself.'
+            exit 1
+          fi
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)
+          echo "Deploying $tag ($sha) to production again."
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   publish:
     name: Publish to Cloudflare Pages
-    needs: check
+    needs: [check, latest-release]
     if: >-
-      !cancelled() && (needs.check.result == 'success' || (
+      !cancelled() && (needs.check.result == 'success' || needs.latest-release.result == 'success' || (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.conclusion == 'success' &&
@@ -31,16 +62,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
-      group: pages-${{ github.event_name == 'release' && 'production' || 'preview' }}
+      group: pages-${{ (github.event_name == 'release' || inputs.target == 'production') && 'production' || 'preview' }}
       cancel-in-progress: false
     environment:
-      name: ${{ github.event_name == 'release' && 'production' || 'preview' }}
+      name: ${{ (github.event_name == 'release' || inputs.target == 'production') && 'production' || 'preview' }}
       url: ${{ steps.pages.outputs.pages-deployment-alias-url || steps.pages.outputs.deployment-url }}
     env:
       # The Pages project, and so the address <project>.pages.dev; set the PAGES_PROJECT repository variable to change it.
       PAGES_PROJECT: ${{ vars.PAGES_PROJECT || 'nilmail' }}
-      PAGES_BRANCH: ${{ github.event_name == 'release' && 'main' || 'preview' }}
-      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      PAGES_BRANCH: ${{ (github.event_name == 'release' || inputs.target == 'production') && 'main' || 'preview' }}
+      DEPLOY_SHA: ${{ needs.latest-release.outputs.sha || github.event.workflow_run.head_sha || github.sha }}
     steps:
       - name: Verify Cloudflare Pages project
         env:

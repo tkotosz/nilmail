@@ -129,7 +129,12 @@ To check the allow-list, sign in once with a Google account that is not on it: n
 
    The repository deliberately has no `wrangler.jsonc`. With one, that file would be the source of truth for the project's plain-text variables, and the dashboard's would never reach the Function.
 
-Cloudflare Pages applies changed secrets to new deployments only. After changing one, such as adding someone to `ALLOWED_EMAILS`, redeploy: re-run the Deploy workflow, or **Retry deployment** on the latest deployment in the dashboard.
+Cloudflare Pages applies changed variables and secrets to new deployments only. After changing one, such as adding someone to `ALLOWED_EMAILS`, redeploy from GitHub's **Actions → Deploy**:
+
+1. Click **Run workflow** and pick the target:
+   - **preview** deploys `main` to the preview address.
+   - **production** deploys the latest release again. Unreleased changes on `main` stay out of production.
+2. Click **Run workflow**.
 
 ## 5. GitHub
 
@@ -152,7 +157,7 @@ Open the production address in Chrome on Android, sign in, then **⋮ → Add to
 
 To invite someone:
 1. Add their address to `ALLOWED_EMAILS`, in both environments.
-2. Redeploy.
+2. Redeploy both, as described in step 4.
 3. Send them the link with a note like this:
 
 > nilmail sorts your Gmail inbox with swipes. When you sign in, Google first asks which account to use, then asks for Gmail access. Google warns that the app isn't verified, because it's a small private app: if it shows a full warning page, click **Advanced → Go to nilmail (unsafe)**. Then tick the Gmail permission. Google describes it as reading, writing and sending email; nilmail only reads, archives, marks read and moves to the Bin. Your mail goes straight from Gmail to your phone or browser; nothing is stored on a server. You can remove its access any time at myaccount.google.com/permissions.
