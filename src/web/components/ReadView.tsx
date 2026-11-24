@@ -62,6 +62,15 @@ function Message({
   );
 }
 
+function UnsubscribeChip({ onClick }: { onClick(): void }) {
+  const { Icon, tone } = actionUi.unsubscribe;
+  return (
+    <button type="button" className={`chip-button tone-${tone} read-unsubscribe`} onClick={onClick}>
+      <Icon size={15} aria-hidden="true" /> Unsubscribe and archive
+    </button>
+  );
+}
+
 /** The whole conversation, full screen, with the actions along the bottom. */
 export function ReadView({
   card,
@@ -106,6 +115,7 @@ export function ReadView({
         <h2 id="read-subject">{thread?.subject ?? card.subject}</h2>
       </header>
       <div className="read-body">
+        {card.unsubscribe && <UnsubscribeChip onClick={() => onAction('unsubscribe')} />}
         {problem && <p className="read-problem">{problem}</p>}
         {!thread && !problem && <div className="spinner" role="status" aria-label="Loading the conversation" />}
         {thread?.messages.map(message => (

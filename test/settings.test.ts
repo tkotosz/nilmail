@@ -11,6 +11,11 @@ test('missing or broken settings fall back to the defaults', () => {
   );
 });
 
+test('unsubscribe cannot be a swipe: not every conversation offers it', () => {
+  assert.deepEqual(restoreSettings({ gestures: { left: 'unsubscribe' } }).gestures.left, defaultSettings.gestures.left);
+  assert.ok(!actionsWithoutGesture(defaultSettings).includes('unsubscribe'));
+});
+
 test('the default swipes are archive, delete, read and skip', () => {
   assert.deepEqual(defaultSettings.gestures, { right: 'archive', left: 'delete', up: 'read', down: 'skip' });
   assert.equal(defaultSettings.archiveMarksRead, true);

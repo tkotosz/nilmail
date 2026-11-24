@@ -1,4 +1,4 @@
-import { actionIds, directions, type ActionId, type Direction, type Settings } from './types.ts';
+import { directions, gestureActionIds, type ActionId, type Direction, type Settings } from './types.ts';
 
 export const defaultQuery = 'in:inbox is:unread';
 
@@ -9,7 +9,7 @@ export const defaultSettings: Settings = {
   query: defaultQuery,
 };
 
-const isAction = (value: unknown): value is ActionId => actionIds.includes(value as ActionId);
+const isGestureAction = (value: unknown): value is ActionId => gestureActionIds.includes(value as ActionId);
 
 /** Turns saved settings, possibly from an older version or edited by hand, into valid settings. */
 export function restoreSettings(saved: unknown): Settings {
@@ -21,7 +21,7 @@ export function restoreSettings(saved: unknown): Settings {
   const gestures = Object.fromEntries(
     directions.map(direction => {
       const value = savedGestures[direction];
-      return [direction, isAction(value) ? value : defaultSettings.gestures[direction]];
+      return [direction, isGestureAction(value) ? value : defaultSettings.gestures[direction]];
     }),
   ) as Record<Direction, ActionId>;
   const query = typeof input.query === 'string' ? input.query.trim() : '';
@@ -33,8 +33,8 @@ export function restoreSettings(saved: unknown): Settings {
   };
 }
 
-/** The actions no gesture reaches; the card offers them as buttons. */
+/** The swipe actions no gesture reaches; the card offers them as buttons. */
 export function actionsWithoutGesture(settings: Settings): ActionId[] {
   const mapped = new Set(Object.values(settings.gestures));
-  return actionIds.filter(action => !mapped.has(action));
+  return gestureActionIds.filter(action => !mapped.has(action));
 }

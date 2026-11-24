@@ -1,4 +1,4 @@
-import { Archive, BookOpen, MailOpen, Reply, SkipForward, Trash2, type LucideIcon } from 'lucide-react';
+import { Archive, BellOff, BookOpen, MailOpen, Reply, SkipForward, Trash2, type LucideIcon } from 'lucide-react';
 import type { ActionId, Direction } from '../core/types.ts';
 
 /** How an action looks: its icon, and the tone that colors its buttons and swipe label. */
@@ -9,6 +9,7 @@ export const actionUi: Record<ActionId, { Icon: LucideIcon; tone: string }> = {
   read: { Icon: BookOpen, tone: 'blue' },
   reply: { Icon: Reply, tone: 'violet' },
   skip: { Icon: SkipForward, tone: 'gray' },
+  unsubscribe: { Icon: BellOff, tone: 'orange' },
 };
 
 export const directionNames: Record<Direction, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down' };

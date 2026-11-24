@@ -35,7 +35,7 @@ export interface GmailThread {
 /** The Gmail calls the core needs; the web app implements them over HTTP. */
 export interface Gmail {
   listThreads(query: string, pageToken?: string): Promise<{ ids: string[]; nextPageToken?: string }>;
-  /** `metadata` brings the From, Subject and Date headers only; `full` brings the bodies too. */
+  /** `metadata` brings only the headers a card shows, such as From and Subject; `full` brings the bodies too. */
   getThread(id: string, format: 'metadata' | 'full'): Promise<GmailThread>;
   modifyThread(id: string, add: string[], remove: string[]): Promise<void>;
   trashThread(id: string): Promise<void>;

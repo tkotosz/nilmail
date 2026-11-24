@@ -1,5 +1,5 @@
 import type { GmailHeader, GmailMessage, GmailPart, GmailThread } from './gmail.ts';
-import type { MailCard, MessageView, Person, ThreadView } from './types.ts';
+import type { MailCard, MessageView, Person, ThreadView, Unsubscribe } from './types.ts';
 
 export function header(headers: GmailHeader[] | undefined, name: string): string {
   const wanted = name.toLowerCase();
@@ -31,6 +31,31 @@ export function decodeEntities(text: string): string {
   });
 }
 
+const linkUrl = (value: string) => {
+  try {
+    return new URL(value.replace(/\s+/g, ''));
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Reads the List-Unsubscribe header, such as `<mailto:leave@example.com>, <https://example.com/leave?u=1>`, with its
+ * List-Unsubscribe-Post companion. A one-click link beats a web page, which beats an email: it needs nothing from the
+ * reader. One-click links must use https.
+ * https://www.rfc-editor.org/rfc/rfc2369 and https://www.rfc-editor.org/rfc/rfc8058
+ */
+export function parseUnsubscribe(list: string, post: string): Unsubscribe | null {
+  const urls = [...list.matchAll(/<([^<>]+)>/g)].map(match => linkUrl(match[1]!)).filter(url => url !== null);
+  const web = urls.find(url => url.protocol === 'https:') ?? urls.find(url => url.protocol === 'http:');
+  if (web?.protocol === 'https:' && /^\s*List-Unsubscribe\s*=\s*One-Click\s*$/i.test(post)) {
+    return { kind: 'oneClick', url: web.href };
+  }
+  if (web) return { kind: 'web', url: web.href };
+  const mailto = urls.find(url => url.protocol === 'mailto:');
+  return mailto ? { kind: 'mailto', url: mailto.href } : null;
+}
+
 const latest = (thread: GmailThread): GmailMessage | undefined => thread.messages?.at(-1);
 
 /** A thread fetched with the `metadata` format, as a card. */
@@ -48,6 +73,14 @@ export function cardFromThread(thread: GmailThread): MailCard {
     // The metadata format has no parts; a mixed multipart message almost always carries attachments.
     hasAttachment: messages.some(message => message.payload?.mimeType === 'multipart/mixed'),
     labelIds: [...new Set(messages.flatMap(message => message.labelIds ?? []))],
+    unsubscribe:
+      messages
+        .toReversed()
+        .map(message => {
+          const headers = message.payload?.headers;
+          return parseUnsubscribe(header(headers, 'List-Unsubscribe'), header(headers, 'List-Unsubscribe-Post'));
+        })
+        .find(unsubscribe => unsubscribe !== null) ?? null,
   };
 }
 

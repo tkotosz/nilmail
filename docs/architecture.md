@@ -52,7 +52,7 @@ The Worker stores nothing and never sees mail. The allow-list comes from the `AL
 - It applies each decision to the deck at once, and sends the Gmail steps through a queue that runs one change at a time.
 - When Gmail refuses a change, the card returns to the deck.
 
-`session.ts` keeps the access token in memory and renews it before it expires. `gmail-http.ts` is the Gmail client.
+`session.ts` keeps the access token in memory and renews it before it expires. `gmail-http.ts` is the Gmail client. `unsubscribe.ts` follows a sender's `List-Unsubscribe` header from the browser.
 
 The read view renders HTML email in a sandboxed frame with no scripts and a restrictive content security policy.
 
@@ -64,4 +64,5 @@ The read view renders HTML email in a sandboxed frame with no scripts and a rest
 - **Optimistic decisions, one Gmail change at a time.** The deck reacts at once; the queue keeps an undo from overtaking the change it undoes.
 - **Undo restores exact labels.** An action removes only labels the thread had, and its undo adds back only those, so undo never leaves a thread different from before.
 - **Every batch starts from the first page.** Decisions change which threads match the search, which makes old page tokens skip threads; the deck remembers what it has seen instead.
+- **Unsubscribe from the browser, unconfirmed.** The one-click request goes straight from the browser in `no-cors` mode, so sender links never reach the Worker; the cost is that the app cannot read the sender's answer.
 - **Folders instead of workspaces.** One app and one build; the folder boundary keeps the core platform-neutral without package wiring.

@@ -15,6 +15,7 @@ import { SwipeCard, type SwipeAction, type SwipeCardHandle } from './components/
 import { useSwipeKeys } from './components/useSwipeKeys.ts';
 import { gmailLink, problemText, type WebGmail } from './gmail-http.ts';
 import { SessionError } from './session.ts';
+import { sendUnsubscribe, unsubscribeDone } from './unsubscribe.ts';
 import { loadSettings, saveSettings } from './storage.ts';
 import { appVersion } from './version.ts';
 
@@ -123,10 +124,17 @@ export function Sorter({
   function decide(card: MailCard, action: ActionId) {
     if (action === 'read') return openReadView(card);
     if (action === 'reply') window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
+    if (action === 'unsubscribe' && card.unsubscribe) {
+      sendUnsubscribe(card.unsubscribe).catch(() =>
+        showToast({ text: 'The unsubscribe request did not reach the sender. Check your connection.', tone: 'error' }),
+      );
+    }
     const steps = stepsFor(action, card, settings);
     const id = nextId.current++;
     dispatch({ type: 'decided', id, card, action, undo: undoSteps(steps, card) });
-    showToast({ text: actionLabels[action].done, tone: 'info', decision: id });
+    const done =
+      action === 'unsubscribe' && card.unsubscribe ? unsubscribeDone[card.unsubscribe.kind] : actionLabels[action].done;
+    showToast({ text: done, tone: 'info', decision: id });
     if (!steps.length) return;
     enqueue(() => applyToGmail(gmail, card.threadId, steps)).then(refreshUnread, error => {
       dispatch({ type: 'decisionFailed', id });
@@ -164,7 +172,7 @@ export function Sorter({
     const action = settings.gestures[direction];
     return { direction, label: actionLabels[action].verb, tone: actionUi[action].tone };
   });
-  const extraActions = actionsWithoutGesture(settings);
+  const extraActions: ActionId[] = [...actionsWithoutGesture(settings), ...(top?.unsubscribe ? ['unsubscribe' as const] : [])];
   const lastDecision = deck.history.at(-1);
   const waiting = deck.loading || (deck.more && !loadProblem);
 

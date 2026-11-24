@@ -13,6 +13,7 @@ const card = (threadId: string, labelIds = ['INBOX', 'UNREAD']): MailCard => ({
   messageCount: 1,
   hasAttachment: false,
   labelIds,
+  unsubscribe: null,
 });
 
 const loaded = (state: DeckState, ids: string[], more = true) =>

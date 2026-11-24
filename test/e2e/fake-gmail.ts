@@ -12,6 +12,8 @@ export interface FakeThread {
   labelIds: string[];
   date: number;
   messages?: number;
+  /** List-Unsubscribe and List-Unsubscribe-Post headers of the latest message. */
+  unsubscribe?: { list: string; post?: string };
 }
 
 export type Change =
@@ -75,6 +77,12 @@ export class FakeGmail {
           { name: 'From', value: latest ? thread.from : 'Me <me@example.com>' },
           { name: 'To', value: 'me@example.com' },
           { name: 'Subject', value: thread.subject },
+          ...(latest && thread.unsubscribe
+            ? [
+                { name: 'List-Unsubscribe', value: thread.unsubscribe.list },
+                ...(thread.unsubscribe.post ? [{ name: 'List-Unsubscribe-Post', value: thread.unsubscribe.post }] : []),
+              ]
+            : []),
         ];
         const body = latest ? thread : { html: undefined, text: `Earlier message ${index + 1}` };
         return {

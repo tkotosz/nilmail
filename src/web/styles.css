@@ -23,6 +23,7 @@
   --blue: #2c66d4;
   --violet: #7445c8;
   --gray: #646a77;
+  --orange: #b4540d;
   color: var(--ink);
   background: var(--page);
 }
@@ -160,6 +161,9 @@ svg {
 }
 .tone-gray {
   --tone: var(--gray);
+}
+.tone-orange {
+  --tone: var(--orange);
 }
 
 /* Welcome and sign-in */
@@ -712,6 +716,9 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.read-unsubscribe {
+  align-self: flex-start;
 }
 .read-body .spinner {
   align-self: center;

@@ -4,9 +4,19 @@ export type Direction = 'left' | 'right' | 'up' | 'down';
 export const directions: readonly Direction[] = ['left', 'down', 'up', 'right'];
 
 /** What the user can do with a conversation. */
-export type ActionId = 'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip';
+export type ActionId = 'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip' | 'unsubscribe';
 
-export const actionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip'];
+export const actionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip', 'unsubscribe'];
+
+/** The actions a swipe can do. Unsubscribe is left out: only some conversations offer it, so it is a button on them. */
+export const gestureActionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip'];
+
+/**
+ * How the sender lets the reader unsubscribe, from the List-Unsubscribe header: `oneClick` is a link that unsubscribes
+ * when it receives a POST (RFC 8058), `web` a page to open, `mailto` an email to send.
+ * https://www.rfc-editor.org/rfc/rfc8058
+ */
+export type Unsubscribe = { kind: 'oneClick' | 'web' | 'mailto'; url: string };
 
 export interface Person {
   name: string;
@@ -25,6 +35,8 @@ export interface MailCard {
   hasAttachment: boolean;
   /** The labels of all messages in the thread together, such as INBOX and UNREAD. */
   labelIds: string[];
+  /** The newest way to unsubscribe that a message in the thread offers, if any. */
+  unsubscribe: Unsubscribe | null;
 }
 
 /** One change to a conversation in Gmail. */

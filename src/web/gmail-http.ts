@@ -6,6 +6,9 @@ import { SessionError, type Session } from './session.ts';
 
 const base = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
+/** The headers a card needs; see `cardFromThread`. */
+const metadataHeaders = ['From', 'Subject', 'Date', 'List-Unsubscribe', 'List-Unsubscribe-Post'];
+
 export class GmailError extends Error {
   /** The HTTP status, or 0 when Gmail could not be reached. */
   readonly status: number;
@@ -58,7 +61,7 @@ export function httpGmail(session: Session): WebGmail {
     },
     getThread(id, format) {
       const params = new URLSearchParams({ format });
-      if (format === 'metadata') for (const name of ['From', 'Subject', 'Date']) params.append('metadataHeaders', name);
+      if (format === 'metadata') for (const name of metadataHeaders) params.append('metadataHeaders', name);
       return call<GmailThread>(`/threads/${encodeURIComponent(id)}?${params}`);
     },
     async modifyThread(id, add, remove) {

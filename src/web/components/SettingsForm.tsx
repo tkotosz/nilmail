@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { actionLabels } from '../../core/actions.ts';
 import { defaultQuery, restoreSettings } from '../../core/settings.ts';
-import { actionIds, type Direction, type Settings } from '../../core/types.ts';
+import { gestureActionIds, type Direction, type Settings } from '../../core/types.ts';
 import { directionArrows, directionNames } from '../action-ui.ts';
 
 const gestureOrder: Direction[] = ['left', 'right', 'up', 'down'];
@@ -43,7 +43,7 @@ export function SettingsForm({
                   change('gestures', { ...draft.gestures, [direction]: event.target.value as Settings['gestures'][Direction] })
                 }
               >
-                {actionIds.map(action => (
+                {gestureActionIds.map(action => (
                   <option key={action} value={action}>
                     {actionLabels[action].verb}
                   </option>

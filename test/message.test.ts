@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GmailThread } from '../src/core/gmail.ts';
-import { cardFromThread, decodeBody, decodeEntities, parsePerson, threadView } from '../src/core/message.ts';
+import { cardFromThread, decodeBody, decodeEntities, parsePerson, parseUnsubscribe, threadView } from '../src/core/message.ts';
 
 const base64Url = (bytes: Uint8Array | string) =>
   Buffer.from(typeof bytes === 'string' ? Buffer.from(bytes, 'utf8') : bytes).toString('base64url');
@@ -57,8 +57,42 @@ test('a metadata thread becomes a card for its latest message', () => {
     messageCount: 2,
     hasAttachment: true,
     labelIds: ['INBOX', 'UNREAD'],
+    unsubscribe: null,
   });
   assert.equal(cardFromThread({ id: 'x', messages: [{ id: 'm', threadId: 'x' }] }).subject, '(no subject)');
+});
+
+test('the unsubscribe header prefers one click, then a web page, then an email', () => {
+  const both = '<mailto:leave@example.com?subject=unsubscribe>, <https://example.com/leave?u=1>';
+  assert.deepEqual(parseUnsubscribe(both, 'List-Unsubscribe=One-Click'), {
+    kind: 'oneClick',
+    url: 'https://example.com/leave?u=1',
+  });
+  assert.deepEqual(parseUnsubscribe(both, ''), { kind: 'web', url: 'https://example.com/leave?u=1' });
+  assert.deepEqual(parseUnsubscribe('<http://example.com/leave>', 'List-Unsubscribe=One-Click'), {
+    kind: 'web',
+    url: 'http://example.com/leave',
+  });
+  assert.deepEqual(parseUnsubscribe('<mailto:leave@example.com>', 'List-Unsubscribe=One-Click'), {
+    kind: 'mailto',
+    url: 'mailto:leave@example.com',
+  });
+  assert.deepEqual(parseUnsubscribe('<https://example.com/a\r\n b>', ''), { kind: 'web', url: 'https://example.com/ab' });
+  assert.equal(parseUnsubscribe('', ''), null);
+  assert.equal(parseUnsubscribe('https://example.com/no-brackets, <javascript:alert(1)>', ''), null);
+});
+
+test('a card offers the unsubscribe of the newest message that has one', () => {
+  const message = (id: string, list: string) => ({
+    id,
+    threadId: 't',
+    payload: { headers: list ? [{ name: 'List-Unsubscribe', value: list }] : [] },
+  });
+  const thread: GmailThread = {
+    id: 't',
+    messages: [message('a', '<https://example.com/old>'), message('b', '<https://example.com/new>'), message('c', '')],
+  };
+  assert.deepEqual(cardFromThread(thread).unsubscribe, { kind: 'web', url: 'https://example.com/new' });
 });
 
 test('bodies are decoded as UTF-8 when they are, and with the declared character set otherwise', () => {

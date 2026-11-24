@@ -24,6 +24,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
   - `Sorter.tsx`: the sorting screen, wiring the deck to Gmail.
   - `gmail-http.ts`: the Gmail client.
   - `session.ts`: access tokens.
+  - `unsubscribe.ts`: unsubscribing from a sender, from the browser.
   - `components/`: the swipe card, mail card, read view and settings.
 - `test/`: unit tests (`*.test.ts`) and the end-to-end walkthrough (`e2e/`, with `fake-gmail.ts`).
 - `scripts/`: the esbuild build, the dev server and the icon renderer. `public/`: static files and the service worker.
@@ -31,6 +32,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 ## Rules that are easy to break
 
 - **Mail never passes through the Worker.** The Worker only exchanges and renews tokens. Gmail calls go from the browser to `gmail.googleapis.com`. Do not add routes that proxy or store mail.
+- **Unsubscribe goes from the browser.** The one-click request (RFC 8058) is a `no-cors` POST straight to the sender, so the app cannot read the answer and says "sent", never "confirmed". Unsubscribe is a button, not a swipe: only conversations with a `List-Unsubscribe` header offer it. A `mailto:` unsubscribe opens the user's mail app; sending mail from nilmail would need a permission beyond `gmail.modify`.
 - **Gmail changes go through `stepsFor` and `undoSteps`.** An action removes only labels the thread has, so its undo restores the thread exactly. Cover new actions in `test/actions.test.ts`.
 - **One Gmail change at a time.** `Sorter` sends every change through its queue, so an undo cannot overtake the change it undoes. Do not call `applyToGmail` outside it.
 - **The deck reducer is the only place cards move.** Screens dispatch `DeckEvent`s. Cover reducer changes in `test/deck.test.ts`.

@@ -7,6 +7,7 @@ export const actionLabels: Record<ActionId, { verb: string; done: string }> = {
   read: { verb: 'Read', done: 'Opened' },
   reply: { verb: 'Reply', done: 'Opened in Gmail' },
   skip: { verb: 'Skip', done: 'Skipped' },
+  unsubscribe: { verb: 'Unsubscribe', done: 'Unsubscribed and archived' },
 };
 
 export const isUnread = (card: MailCard) => card.labelIds.includes('UNREAD');
@@ -19,11 +20,12 @@ function removing(card: MailCard, labels: string[]): GmailStep[] {
 
 /**
  * What an action changes in Gmail. Read changes only the UNREAD label, when the read view opens; Reply and Skip change
- * nothing.
+ * nothing. Unsubscribe archives: the request to the sender is not a Gmail change.
  */
 export function stepsFor(action: ActionId, card: MailCard, settings: Settings): GmailStep[] {
   switch (action) {
     case 'archive':
+    case 'unsubscribe':
       return removing(card, settings.archiveMarksRead ? ['INBOX', 'UNREAD'] : ['INBOX']);
     case 'delete':
       return [{ op: 'trash' }];

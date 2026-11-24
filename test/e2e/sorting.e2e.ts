@@ -208,6 +208,47 @@ test('reply opens the conversation in Gmail for the signed-in account', async ()
   await page.context().close();
 });
 
+test("Unsubscribe sends the one-click request from the browser and archives; a web link opens the sender's page", async () => {
+  const threads = sampleThreads(4);
+  threads[0]!.unsubscribe = {
+    list: '<mailto:leave@news.example>, <https://news.example/leave?u=1>',
+    post: 'List-Unsubscribe=One-Click',
+  };
+  threads[1]!.unsubscribe = { list: '<https://shop.example/preferences>' };
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail);
+  const sent: { method: string; body: string | null; cookie?: string }[] = [];
+  await page.context().route('https://news.example/**', async route => {
+    sent.push({ method: route.request().method(), body: route.request().postData(), cookie: route.request().headers().cookie });
+    await route.fulfill({ status: 200, body: 'Unsubscribed' });
+  });
+  await page.context().route('https://shop.example/**', route => route.fulfill({ body: 'Preferences' }));
+  await waitForCard(page);
+  await page.screenshot({ path: `${screenshots}unsubscribe.png` });
+
+  await page.locator('.card-extras').getByRole('button', { name: 'Unsubscribe' }).click();
+  await page.getByRole('status').filter({ hasText: 'Unsubscribed and archived' }).waitFor();
+  await settle(gmail, 1);
+  assert.deepEqual(sent, [{ method: 'POST', body: 'List-Unsubscribe=One-Click', cookie: undefined }]);
+  assert.deepEqual(gmail.changes[0], { thread: 'thread000', op: 'modify', add: [], remove: ['INBOX', 'UNREAD'] });
+  assert.equal(await topSubject(page), 'Message number 2');
+
+  await page.keyboard.press('ArrowUp');
+  const view = page.locator('dialog.read-view');
+  await view.waitFor();
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup'),
+    view.getByRole('button', { name: 'Unsubscribe and archive' }).click(),
+  ]);
+  assert.equal(popup.url(), 'https://shop.example/preferences');
+  await page.getByRole('status').filter({ hasText: 'Finish unsubscribing in the new tab' }).waitFor();
+  await settle(gmail, 3);
+  assert.deepEqual(gmail.changes[2], { thread: 'thread001', op: 'modify', add: [], remove: ['INBOX'] });
+  assert.equal(await page.locator('.card-extras').getByRole('button', { name: 'Unsubscribe' }).count(), 0);
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('settings change what a swipe does, and stay after a reload', async () => {
   const gmail = new FakeGmail(sampleThreads(4));
   const { page, errors } = await open(gmail);

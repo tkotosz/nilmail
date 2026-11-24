@@ -13,6 +13,7 @@ const card = (labelIds: string[]): MailCard => ({
   messageCount: 1,
   hasAttachment: false,
   labelIds,
+  unsubscribe: null,
 });
 
 test('archive takes the thread out of the inbox and marks it read, unless the setting says otherwise', () => {
@@ -37,6 +38,14 @@ test('reply and skip change nothing in Gmail; read and mark read remove UNREAD',
   assert.deepEqual(stepsFor('skip', unread, defaultSettings), []);
   assert.deepEqual(stepsFor('read', unread, defaultSettings), [{ op: 'modify', add: [], remove: ['UNREAD'] }]);
   assert.deepEqual(stepsFor('markRead', unread, defaultSettings), [{ op: 'modify', add: [], remove: ['UNREAD'] }]);
+});
+
+test('unsubscribe archives the thread like Archive does, so undo brings it back', () => {
+  const unread = card(['INBOX', 'UNREAD']);
+  assert.deepEqual(stepsFor('unsubscribe', unread, defaultSettings), stepsFor('archive', unread, defaultSettings));
+  assert.deepEqual(stepsFor('unsubscribe', unread, { ...defaultSettings, archiveMarksRead: false }), [
+    { op: 'modify', add: [], remove: ['INBOX'] },
+  ]);
 });
 
 test('undoing a delete takes the thread out of the Bin and puts back its inbox and unread labels', () => {
