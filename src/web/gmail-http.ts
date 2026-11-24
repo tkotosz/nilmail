@@ -1,4 +1,5 @@
 import type { Gmail, GmailThread } from '../core/gmail.ts';
+import type { GmailLabel } from '../core/types.ts';
 import { SessionError, type Session } from './session.ts';
 
 // The Gmail API over HTTP, called straight from the browser with the session's access token.
@@ -22,6 +23,9 @@ export interface WebGmail extends Gmail {
   /** Unread conversations in the inbox. */
   unreadInInbox(): Promise<number>;
   emailAddress(): Promise<string>;
+  /** The labels the user made, by name. */
+  userLabels(): Promise<GmailLabel[]>;
+  createLabel(name: string): Promise<GmailLabel>;
 }
 
 export function httpGmail(session: Session): WebGmail {
@@ -81,6 +85,20 @@ export function httpGmail(session: Session): WebGmail {
     },
     async emailAddress() {
       return (await call<{ emailAddress: string }>('/profile')).emailAddress;
+    },
+    async userLabels() {
+      const { labels = [] } = await call<{ labels?: (GmailLabel & { type?: string })[] }>('/labels');
+      return labels
+        .filter(label => label.type === 'user')
+        .map(({ id, name }) => ({ id, name }))
+        .toSorted((a, b) => a.name.localeCompare(b.name));
+    },
+    async createLabel(name) {
+      const { id } = await call<GmailLabel>('/labels', {
+        method: 'POST',
+        body: { name, labelListVisibility: 'labelShow', messageListVisibility: 'show' },
+      });
+      return { id, name };
     },
   };
 }

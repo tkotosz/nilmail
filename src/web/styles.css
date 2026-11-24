@@ -24,6 +24,7 @@
   --violet: #7445c8;
   --gray: #646a77;
   --orange: #b4540d;
+  --plum: #a3326f;
   color: var(--ink);
   background: var(--page);
 }
@@ -164,6 +165,9 @@ svg {
 }
 .tone-orange {
   --tone: var(--orange);
+}
+.tone-plum {
+  --tone: var(--plum);
 }
 
 /* Welcome and sign-in */
@@ -517,6 +521,13 @@ svg {
   font-size: 0.8rem;
   font-weight: 700;
 }
+.action-button span {
+  max-width: 100%;
+  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .action-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--tone) 8%, white);
 }
@@ -641,6 +652,11 @@ dialog::backdrop {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+.gesture-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .gesture-choice,
 .query-field {
   display: flex;
@@ -650,7 +666,8 @@ dialog::backdrop {
   font-weight: 600;
   color: var(--muted);
 }
-.gesture-choice select,
+.gesture-cell select,
+.gesture-cell input,
 .query-field input {
   min-height: 44px;
   border: 1px solid var(--line);
@@ -670,6 +687,11 @@ dialog::backdrop {
   width: 20px;
   height: 20px;
   accent-color: var(--brand);
+}
+.settings-form .form-problem {
+  color: var(--red);
+  font-size: 0.88rem;
+  margin: 0;
 }
 .hint {
   color: var(--muted);

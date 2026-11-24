@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
 import { Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
-import { actionLabels, applySteps, coversSender, stepsFor, undoSteps } from '../core/actions.ts';
+import { actionDone, actionVerb, applySteps, coversSender, stepsFor, undoSteps } from '../core/actions.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyChanges, applyToGmail } from '../core/gmail.ts';
 import { actionsWithoutGesture } from '../core/settings.ts';
-import { directions, type ActionId, type Direction, type MailCard, type Settings } from '../core/types.ts';
+import { directions, type ActionId, type Direction, type GmailLabel, type MailCard, type Settings } from '../core/types.ts';
 import { actionUi, directionArrows, keyDirections } from './action-ui.ts';
 import { InstallButton } from './components/InstallButton.tsx';
 import { MailCardView, NoDrag } from './components/MailCardView.tsx';
@@ -146,7 +146,8 @@ export function Sorter({
     );
   }
 
-  function decide(card: MailCard, action: ActionId) {
+  /** `label` is the label of a label swipe. */
+  function decide(card: MailCard, action: ActionId, label?: GmailLabel) {
     if (action === 'read') return openReadView(card);
     if (action === 'reply') window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
     if (action === 'unsubscribe' && card.unsubscribe) {
@@ -155,7 +156,7 @@ export function Sorter({
       );
     }
     const others = allFromSender?.threadId === card.threadId && coversSender(action) ? (allFromSender.others ?? []) : [];
-    const planned = [card, ...others].map(item => ({ card: item, steps: stepsFor(action, item, settings) }));
+    const planned = [card, ...others].map(item => ({ card: item, steps: stepsFor(action, item, settings, label) }));
     const id = nextId.current++;
     dispatch({
       type: 'decided',
@@ -163,7 +164,7 @@ export function Sorter({
     });
     setSender(null);
     const done =
-      action === 'unsubscribe' && card.unsubscribe ? unsubscribeDone[card.unsubscribe.kind] : actionLabels[action].done;
+      action === 'unsubscribe' && card.unsubscribe ? unsubscribeDone[card.unsubscribe.kind] : actionDone(action, label);
     showToast({ text: others.length ? `${done}: ${conversations(planned.length)}` : done, tone: 'info', decision: id });
     if (!planned.some(change => change.steps.length)) return;
     const changes = planned.map(({ card, steps }) => ({ threadId: card.threadId, steps }));
@@ -207,14 +208,14 @@ export function Sorter({
 
   /** How many conversations an action covers when it covers all from the sender, such as "15" or "100+". */
   const senderCount = allFromSender?.others?.length && `${allFromSender.others.length + 1}${allFromSender.more ? '+' : ''}`;
-  const verb = (action: ActionId) =>
-    senderCount && coversSender(action) ? `${actionLabels[action].verb} ${senderCount}` : actionLabels[action].verb;
+  const verb = (action: ActionId, label?: GmailLabel) =>
+    senderCount && coversSender(action) ? `${actionVerb(action, label)} ${senderCount}` : actionVerb(action, label);
   // While the sender's conversations are being found, the card stays put: a swipe would not know what it covers.
   const swipeActions: SwipeAction[] = findingSender
     ? []
     : directions.map(direction => {
         const action = settings.gestures[direction];
-        return { direction, label: verb(action), tone: actionUi[action].tone };
+        return { direction, label: verb(action, settings.labels[direction]), tone: actionUi[action].tone };
       });
   const extraActions: ActionId[] = [...actionsWithoutGesture(settings), ...(top?.unsubscribe ? ['unsubscribe' as const] : [])];
   const lastDecision = deck.history.at(-1);
@@ -266,7 +267,7 @@ export function Sorter({
               key={`${top.threadId}:${cardVersion}`}
               ref={card}
               actions={swipeActions}
-              onAction={direction => decide(top, settings.gestures[direction])}
+              onAction={direction => decide(top, settings.gestures[direction], settings.labels[direction])}
             >
               <MailCardView card={top}>
                 <NoDrag className="card-extras">
@@ -346,7 +347,7 @@ export function Sorter({
               onClick={() => void card.current?.swipe(direction)}
             >
               <Icon size={22} aria-hidden="true" />
-              <span>{verb(action)}</span>
+              <span>{verb(action, settings.labels[direction])}</span>
               <kbd aria-hidden="true">{directionArrows[direction]}</kbd>
             </button>
           );
@@ -383,6 +384,7 @@ export function Sorter({
           <SettingsForm
             settings={settings}
             email={email}
+            gmail={gmail}
             onSignOut={onSignOut}
             onSave={saved => {
               const queryChanged = saved.query !== settings.query;

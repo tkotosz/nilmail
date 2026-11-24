@@ -1,4 +1,4 @@
-import type { ActionId, GmailStep, MailCard, Settings } from './types.ts';
+import type { ActionId, GmailLabel, GmailStep, MailCard, Settings } from './types.ts';
 
 export const actionLabels: Record<ActionId, { verb: string; done: string }> = {
   archive: { verb: 'Archive', done: 'Archived' },
@@ -7,8 +7,17 @@ export const actionLabels: Record<ActionId, { verb: string; done: string }> = {
   read: { verb: 'Read', done: 'Opened' },
   reply: { verb: 'Reply', done: 'Opened in Gmail' },
   skip: { verb: 'Skip', done: 'Skipped' },
+  label: { verb: 'Label', done: 'Labeled' },
   unsubscribe: { verb: 'Unsubscribe', done: 'Unsubscribed and archived' },
 };
+
+/** What a swipe or button shows: a label action shows its label's name. */
+export const actionVerb = (action: ActionId, label?: GmailLabel) =>
+  action === 'label' && label ? label.name : actionLabels[action].verb;
+
+/** What the toast says after the action. */
+export const actionDone = (action: ActionId, label?: GmailLabel) =>
+  action === 'label' && label ? `Moved to ${label.name}` : actionLabels[action].done;
 
 /** Read and Reply are about one conversation; the others can cover all from a sender at once. */
 export const coversSender = (action: ActionId) => action !== 'read' && action !== 'reply';
@@ -23,10 +32,18 @@ function removing(card: MailCard, labels: string[]): GmailStep[] {
 
 /**
  * What an action changes in Gmail. Read changes only the UNREAD label, when the read view opens; Reply and Skip change
- * nothing. Unsubscribe archives: the request to the sender is not a Gmail change.
+ * nothing. Unsubscribe archives: the request to the sender is not a Gmail change. Label adds `label` (adding only a label
+ * the thread lacks, so undo never removes one it had) and archives, but keeps the thread unread, like a pile to go
+ * through later.
  */
-export function stepsFor(action: ActionId, card: MailCard, settings: Settings): GmailStep[] {
+export function stepsFor(action: ActionId, card: MailCard, settings: Settings, label?: GmailLabel): GmailStep[] {
   switch (action) {
+    case 'label': {
+      if (!label) return [];
+      const add = card.labelIds.includes(label.id) ? [] : [label.id];
+      const remove = card.labelIds.includes('INBOX') ? ['INBOX'] : [];
+      return add.length || remove.length ? [{ op: 'modify', add, remove }] : [];
+    }
     case 'archive':
     case 'unsubscribe':
       return removing(card, settings.archiveMarksRead ? ['INBOX', 'UNREAD'] : ['INBOX']);

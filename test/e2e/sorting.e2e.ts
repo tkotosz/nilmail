@@ -323,6 +323,47 @@ test('settings change what a swipe does, and stay after a reload', async () => {
   await page.context().close();
 });
 
+test('a label swipe files the conversation under a new or an existing label, keeps it unread, and stays after a reload', async () => {
+  const gmail = new FakeGmail(sampleThreads(6));
+  gmail.labelList.push({ id: 'Label_receipts', name: 'Receipts', type: 'user' });
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('combobox', { name: 'Down', exact: true }).selectOption('label');
+  const downLabel = page.getByLabel('Down swipe label');
+  assert.deepEqual(await downLabel.locator('option').allTextContents(), ['Receipts', 'New label…'], 'only user labels');
+  await downLabel.selectOption({ label: 'New label…' });
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByText('Name the label for the down swipe.').waitFor();
+  await page.getByLabel('New label for the down swipe').fill('Later');
+  await page.getByRole('combobox', { name: 'Left', exact: true }).selectOption('label');
+  await page.locator('legend', { hasText: 'Swipes' }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${screenshots}settings-labels.png` });
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.locator('dialog').waitFor({ state: 'hidden' });
+  const later = gmail.labelList.find(label => label.name === 'Later')!;
+  assert.ok(later, 'the new label is created in Gmail');
+
+  await page.locator('.action-bar').getByRole('button', { name: /Later/ }).waitFor();
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('status').filter({ hasText: 'Moved to Later' }).waitFor();
+  await settle(gmail, 1);
+  assert.deepEqual(gmail.changes[0], { thread: 'thread000', op: 'modify', add: [later.id], remove: ['INBOX'] });
+  assert.ok(gmail.labels('thread000').includes('UNREAD'), 'still unread');
+
+  await page.reload();
+  await waitForCard(page);
+  await page.keyboard.press('ArrowLeft');
+  await page.getByRole('status').filter({ hasText: 'Moved to Receipts' }).waitFor();
+  await settle(gmail, 2);
+  assert.deepEqual(gmail.changes[1], { thread: 'thread001', op: 'modify', add: ['Label_receipts'], remove: ['INBOX'] });
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await settle(gmail, 3);
+  assert.deepEqual(gmail.changes[2], { thread: 'thread001', op: 'modify', add: ['INBOX'], remove: ['Label_receipts'] });
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('a change Gmail refuses puts the card back with a message', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   gmail.failChanges = 500;

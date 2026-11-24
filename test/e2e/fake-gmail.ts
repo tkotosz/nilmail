@@ -50,6 +50,11 @@ export class FakeGmail {
   readonly threads = new Map<string, FakeThread>();
   readonly changes: Change[] = [];
   readonly requests: string[] = [];
+  /** The user's labels; Gmail also lists its own system labels, which the app must leave out. */
+  readonly labelList: { id: string; name: string; type: 'user' | 'system' }[] = [
+    { id: 'INBOX', name: 'INBOX', type: 'system' },
+    { id: 'STARRED', name: 'STARRED', type: 'system' },
+  ];
   /** Answer every change with this status instead, to test failures. */
   failChanges: number | null = null;
 
@@ -119,6 +124,13 @@ export class FakeGmail {
     const reply = (json: unknown, status = 200) => route.fulfill({ status, headers: cors, json });
 
     if (path === '/profile') return reply({ emailAddress: 'me@example.com' });
+    if (path === '/labels' && request.method() === 'GET') return reply({ labels: this.labelList });
+    if (path === '/labels' && request.method() === 'POST') {
+      const { name } = request.postDataJSON() as { name: string };
+      const label = { id: `Label_${this.labelList.length + 1}`, name, type: 'user' as const };
+      this.labelList.push(label);
+      return reply(label);
+    }
     if (path === '/labels/INBOX') return reply({ id: 'INBOX', threadsUnread: this.matching().length });
     if (path === '/threads') {
       const all = this.matching(url.searchParams.get('q') ?? '');

@@ -4,12 +4,18 @@ export type Direction = 'left' | 'right' | 'up' | 'down';
 export const directions: readonly Direction[] = ['left', 'down', 'up', 'right'];
 
 /** What the user can do with a conversation. */
-export type ActionId = 'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip' | 'unsubscribe';
+export type ActionId = 'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip' | 'label' | 'unsubscribe';
 
-export const actionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip', 'unsubscribe'];
+export const actionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip', 'label', 'unsubscribe'];
 
 /** The actions a swipe can do. Unsubscribe is left out: only some conversations offer it, so it is a button on them. */
-export const gestureActionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip'];
+export const gestureActionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip', 'label'];
+
+/** A Gmail label the user made, such as "Later". */
+export interface GmailLabel {
+  id: string;
+  name: string;
+}
 
 /**
  * How the sender lets the reader unsubscribe, from the List-Unsubscribe header: `oneClick` is a link that unsubscribes
@@ -44,6 +50,8 @@ export type GmailStep = { op: 'modify'; add: string[]; remove: string[] } | { op
 
 export interface Settings {
   gestures: Record<Direction, ActionId>;
+  /** The label of each swipe that labels; every direction set to `label` has one. */
+  labels: Partial<Record<Direction, GmailLabel>>;
   /** Archive also removes UNREAD, so archived mail does not stay unread in All Mail. */
   archiveMarksRead: boolean;
   /** Remote images in the read view load without asking. */

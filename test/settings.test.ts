@@ -16,6 +16,18 @@ test('unsubscribe cannot be a swipe: not every conversation offers it', () => {
   assert.ok(!actionsWithoutGesture(defaultSettings).includes('unsubscribe'));
 });
 
+test('a label swipe keeps its label; without one it falls back, and other swipes keep none', () => {
+  const later = { id: 'Label_1', name: 'Later' };
+  const restored = restoreSettings({
+    gestures: { down: 'label', left: 'label', up: 'archive' },
+    labels: { down: later, left: { id: '' }, up: later },
+  });
+  assert.deepEqual(restored.gestures, { right: 'archive', left: 'delete', up: 'archive', down: 'label' });
+  assert.deepEqual(restored.labels, { down: later });
+  assert.deepEqual(restoreSettings({ gestures: { down: 'label' } }).gestures.down, 'skip');
+  assert.ok(!actionsWithoutGesture(defaultSettings).includes('label'), 'a label button would not know its label');
+});
+
 test('the default swipes are archive, delete, read and skip', () => {
   assert.deepEqual(defaultSettings.gestures, { right: 'archive', left: 'delete', up: 'read', down: 'skip' });
   assert.equal(defaultSettings.archiveMarksRead, true);

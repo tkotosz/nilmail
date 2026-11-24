@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applySteps, stepsFor, undoSteps } from '../src/core/actions.ts';
+import { actionDone, actionVerb, applySteps, stepsFor, undoSteps } from '../src/core/actions.ts';
 import { defaultSettings } from '../src/core/settings.ts';
 import type { MailCard } from '../src/core/types.ts';
 
@@ -46,6 +46,24 @@ test('unsubscribe archives the thread like Archive does, so undo brings it back'
   assert.deepEqual(stepsFor('unsubscribe', unread, { ...defaultSettings, archiveMarksRead: false }), [
     { op: 'modify', add: [], remove: ['INBOX'] },
   ]);
+});
+
+test('a label swipe files the thread under the label and out of the inbox, still unread, and undo reverses exactly that', () => {
+  const later = { id: 'Label_1', name: 'Later' };
+  const unread = card(['INBOX', 'UNREAD']);
+  const steps = stepsFor('label', unread, defaultSettings, later);
+  assert.deepEqual(steps, [{ op: 'modify', add: ['Label_1'], remove: ['INBOX'] }]);
+  assert.deepEqual(undoSteps(steps, unread), [{ op: 'modify', add: ['INBOX'], remove: ['Label_1'] }]);
+  assert.deepEqual(
+    stepsFor('label', card(['INBOX', 'Label_1']), defaultSettings, later),
+    [{ op: 'modify', add: [], remove: ['INBOX'] }],
+    'a label the thread already has is not added, so undo keeps it',
+  );
+  assert.deepEqual(stepsFor('label', card(['Label_1']), defaultSettings, later), []);
+  assert.deepEqual(stepsFor('label', unread, defaultSettings), [], 'without a label, nothing happens');
+  assert.equal(actionVerb('label', later), 'Later');
+  assert.equal(actionDone('label', later), 'Moved to Later');
+  assert.equal(actionVerb('archive'), 'Archive');
 });
 
 test('undoing a delete takes the thread out of the Bin and puts back its inbox and unread labels', () => {
