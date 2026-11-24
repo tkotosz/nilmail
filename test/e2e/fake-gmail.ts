@@ -61,9 +61,12 @@ export class FakeGmail {
     return this.threads.get(id)!.labelIds;
   }
 
-  private matching(): FakeThread[] {
+  /** Unread inbox threads; of these, a search with `from:"address"` matches only that sender's. */
+  private matching(query = ''): FakeThread[] {
+    const from = /from:"([^"]+)"/.exec(query)?.[1];
     return [...this.threads.values()]
       .filter(thread => thread.labelIds.includes('INBOX') && thread.labelIds.includes('UNREAD'))
+      .filter(thread => !from || thread.from.includes(`<${from}>`))
       .sort((a, b) => b.date - a.date);
   }
 
@@ -118,7 +121,7 @@ export class FakeGmail {
     if (path === '/profile') return reply({ emailAddress: 'me@example.com' });
     if (path === '/labels/INBOX') return reply({ id: 'INBOX', threadsUnread: this.matching().length });
     if (path === '/threads') {
-      const all = this.matching();
+      const all = this.matching(url.searchParams.get('q') ?? '');
       const size = Number(url.searchParams.get('maxResults') ?? 100);
       const start = Number(url.searchParams.get('pageToken') ?? 0);
       const page = all.slice(start, start + size);

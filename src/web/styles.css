@@ -422,6 +422,20 @@ svg {
 .chip-button:hover {
   background: color-mix(in srgb, var(--tone) 15%, white);
 }
+.chip-button:disabled {
+  opacity: 0.5;
+}
+/* "All from sender": a switch, not an action, so it stays neutral until it is on. */
+.sender-toggle {
+  --tone: var(--ink);
+  background: var(--paper);
+  border-color: var(--line);
+}
+.sender-toggle[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
 .swipe-intent {
   position: absolute;
   top: 74px;

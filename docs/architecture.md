@@ -49,7 +49,7 @@ The Worker stores nothing and never sees mail. The allow-list comes from the `AL
 
 `Sorter.tsx` owns the deck reducer and wires it to Gmail:
 - It loads batches when the deck runs low.
-- It applies each decision to the deck at once, and sends the Gmail steps through a queue that runs one change at a time.
+- It applies each decision to the deck at once, and sends the Gmail steps through a queue that runs one decision at a time.
 - When Gmail refuses a change, the card returns to the deck.
 
 `session.ts` keeps the access token in memory and renews it before it expires. `gmail-http.ts` is the Gmail client. `unsubscribe.ts` follows a sender's `List-Unsubscribe` header from the browser.
@@ -61,7 +61,8 @@ The read view renders HTML email in a sandboxed frame with no scripts and a rest
 - **An unverified Google client and an allow-list.** Google allows an unverified app with restricted scopes for fewer than 100 people known to the developer, as personal use; the allow-list in the Worker keeps it to those people, checked at sign-in and at every renewal so removing someone takes effect within the hour. Sign-in asks for the address before asking for Gmail, so people not on the list never see the unverified-app warning and never count toward Google's limit of 100 accounts. A Personal-mode client works too, for one person. Growing beyond 100 users needs Google's verification and a yearly security assessment.
 - **A Worker for tokens only.** Google issues refresh tokens only to a server holding the client secret; keeping the token in an encrypted cookie avoids a database, and Gmail calls go straight from the browser so mail never passes through Cloudflare.
 - **Conversations, not messages.** Gmail's inbox is a list of threads, so every action applies to the whole thread.
-- **Optimistic decisions, one Gmail change at a time.** The deck reacts at once; the queue keeps an undo from overtaking the change it undoes.
+- **Optimistic decisions, one at a time.** The deck reacts at once; the queue keeps an undo from overtaking the change it undoes.
+- **A decision can cover many conversations.** "All from sender" finds the sender's conversations in the deck's search and makes one decision of them, with one undo. Their threads change three at a time to stay within Gmail's per-user rate limit, and only the threads Gmail refuses go back to the deck.
 - **Undo restores exact labels.** An action removes only labels the thread had, and its undo adds back only those, so undo never leaves a thread different from before.
 - **Every batch starts from the first page.** Decisions change which threads match the search, which makes old page tokens skip threads; the deck remembers what it has seen instead.
 - **Unsubscribe from the browser, unconfirmed.** The one-click request goes straight from the browser in `no-cors` mode, so sender links never reach the Worker; the cost is that the app cannot read the sender's answer.

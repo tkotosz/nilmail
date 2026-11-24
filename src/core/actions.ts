@@ -10,6 +10,9 @@ export const actionLabels: Record<ActionId, { verb: string; done: string }> = {
   unsubscribe: { verb: 'Unsubscribe', done: 'Unsubscribed and archived' },
 };
 
+/** Read and Reply are about one conversation; the others can cover all from a sender at once. */
+export const coversSender = (action: ActionId) => action !== 'read' && action !== 'reply';
+
 export const isUnread = (card: MailCard) => card.labelIds.includes('UNREAD');
 
 /** Removes the labels the card has; asking Gmail to remove a label a thread lacks would make undo add it. */

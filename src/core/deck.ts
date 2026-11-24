@@ -2,14 +2,20 @@ import { cardFromThread } from './message.ts';
 import type { Gmail } from './gmail.ts';
 import type { ActionId, GmailStep, MailCard } from './types.ts';
 
-/** A decision the user can still undo. */
-export interface Decision {
-  id: number;
-  action: ActionId;
+/** One conversation a decision changed. */
+export interface ThreadChange {
   /** The card as it was before the action. */
   card: MailCard;
   /** The steps that put Gmail back. */
   undo: GmailStep[];
+}
+
+/** A decision the user can still undo. */
+export interface Decision {
+  id: number;
+  action: ActionId;
+  /** The card the user acted on first; then, when the decision covered all from its sender, the others. */
+  changes: ThreadChange[];
 }
 
 export interface DeckState {
@@ -32,19 +38,29 @@ export type DeckEvent =
   | { type: 'loading' }
   | { type: 'loaded'; cards: MailCard[]; more: boolean }
   | { type: 'loadFailed' }
-  /** `id` is unique per decision; the app hands it out. */
-  | { type: 'decided'; id: number; card: MailCard; action: ActionId; undo: GmailStep[] }
-  /** Gmail refused a decision: the card goes back on top. */
-  | { type: 'decisionFailed'; id: number }
+  /** The decision's `id` is unique; the app hands it out. */
+  | { type: 'decided'; decision: Decision }
+  /** Gmail refused the decision for these threads: their cards go back on top, and the decision keeps the others. */
+  | { type: 'decisionFailed'; id: number; threadIds: string[] }
   | { type: 'undone'; id: number }
-  /** Gmail refused an undo: the card leaves again and the decision can be undone once more. */
+  /** Gmail refused to undo the decision's threads: their cards leave again and can be undone once more. */
   | { type: 'undoFailed'; decision: Decision }
   /** The card changed in place, for example after the read view marked it read. */
   | { type: 'cardChanged'; card: MailCard }
   /** Starts the deck again from the newest thread, skipped ones included. */
   | { type: 'reset' };
 
-const withoutCard = (cards: MailCard[], threadId: string) => cards.filter(card => card.threadId !== threadId);
+const union = (seen: ReadonlySet<string>, ids: Iterable<string>) => new Set([...seen, ...ids]);
+const threadIds = (decision: Decision) => new Set(decision.changes.map(change => change.card.threadId));
+const withoutThreads = (cards: MailCard[], ids: ReadonlySet<string>) => cards.filter(card => !ids.has(card.threadId));
+
+/** Puts the cards of the changes back on top, in order. */
+function putBack(state: DeckState, changes: ThreadChange[]): Pick<DeckState, 'cards' | 'seen'> {
+  const back = changes.map(change => change.card);
+  const ids = new Set(back.map(card => card.threadId));
+  // A reload since the decision forgot the threads, so a later batch would bring them in a second time.
+  return { cards: [...back, ...withoutThreads(state.cards, ids)], seen: union(state.seen, ids) };
+}
 
 export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
   switch (event.type) {
@@ -59,29 +75,37 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
     case 'loadFailed':
       return { ...state, loading: false };
     case 'decided': {
-      const decision: Decision = { id: event.id, action: event.action, card: event.card, undo: event.undo };
+      const ids = threadIds(event.decision);
       return {
         ...state,
-        cards: withoutCard(state.cards, event.card.threadId),
-        history: [...state.history, decision].slice(-historyLimit),
+        cards: withoutThreads(state.cards, ids),
+        // Threads from the sender that had not reached the deck yet stay out of later batches too.
+        seen: union(state.seen, ids),
+        history: [...state.history, event.decision].slice(-historyLimit),
       };
     }
-    case 'decisionFailed':
+    case 'decisionFailed': {
+      const decision = state.history.find(item => item.id === event.id);
+      if (!decision) return state;
+      const failed = decision.changes.filter(change => event.threadIds.includes(change.card.threadId));
+      const kept = decision.changes.filter(change => !event.threadIds.includes(change.card.threadId));
+      return {
+        ...state,
+        ...putBack(state, failed),
+        history: kept.length
+          ? state.history.map(item => (item.id === event.id ? { ...item, changes: kept } : item))
+          : state.history.filter(item => item.id !== event.id),
+      };
+    }
     case 'undone': {
       const decision = state.history.find(item => item.id === event.id);
       if (!decision) return state;
-      return {
-        ...state,
-        cards: [decision.card, ...withoutCard(state.cards, decision.card.threadId)],
-        // A reload since the decision forgot the thread, so a later batch would bring it in a second time.
-        seen: new Set(state.seen).add(decision.card.threadId),
-        history: state.history.filter(item => item.id !== event.id),
-      };
+      return { ...state, ...putBack(state, decision.changes), history: state.history.filter(item => item.id !== event.id) };
     }
     case 'undoFailed':
       return {
         ...state,
-        cards: withoutCard(state.cards, event.decision.card.threadId),
+        cards: withoutThreads(state.cards, threadIds(event.decision)),
         history: [...state.history, event.decision].slice(-historyLimit),
       };
     case 'cardChanged':
@@ -90,6 +114,28 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
       // The decisions stay undoable: their changes in Gmail still stand.
       return { ...emptyDeck, history: state.history };
   }
+}
+
+/** The Gmail search for the conversations of the deck's search that come from one sender. */
+export const senderQuery = (query: string, address: string) => `(${query}) from:"${address.replaceAll('"', '')}"`;
+
+/** How many conversations from one sender a decision can cover. */
+export const senderLimit = 100;
+
+/**
+ * The other conversations of the deck's search from the card's sender, newest first, at most `senderLimit` with the
+ * card. `more` says the sender has more than that.
+ */
+export async function findFromSender(
+  gmail: Gmail,
+  query: string,
+  card: MailCard,
+): Promise<{ others: MailCard[]; more: boolean }> {
+  const { cards, more } = await loadCards(gmail, senderQuery(query, card.from.address), new Set([card.threadId]), {
+    limit: senderLimit - 1,
+    maxPages: 3,
+  });
+  return { others: cards, more };
 }
 
 /** How many cards are left before the next batch loads. */

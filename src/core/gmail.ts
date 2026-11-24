@@ -50,3 +50,28 @@ export async function applyToGmail(gmail: Gmail, threadId: string, steps: GmailS
     else await gmail.untrashThread(threadId);
   }
 }
+
+/**
+ * Applies each thread's steps, a few threads at a time so Gmail's per-user rate limit holds. Threads Gmail refuses are
+ * reported with the first error, instead of stopping the others.
+ */
+export async function applyChanges(
+  gmail: Gmail,
+  changes: { threadId: string; steps: GmailStep[] }[],
+  parallel = 3,
+): Promise<{ failed: string[]; error?: unknown }> {
+  const failed: string[] = [];
+  let error: unknown;
+  const pending = changes.filter(change => change.steps.length);
+  for (let start = 0; start < pending.length; start += parallel) {
+    await Promise.all(
+      pending.slice(start, start + parallel).map(change =>
+        applyToGmail(gmail, change.threadId, change.steps).catch((reason: unknown) => {
+          failed.push(change.threadId);
+          error ??= reason;
+        }),
+      ),
+    );
+  }
+  return error === undefined ? { failed } : { failed, error };
+}

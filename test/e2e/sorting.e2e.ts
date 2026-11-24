@@ -249,6 +249,57 @@ test("Unsubscribe sends the one-click request from the browser and archives; a w
   await page.context().close();
 });
 
+test('All from sender applies one swipe to every unread conversation from the sender, with one undo', async () => {
+  const gmail = new FakeGmail(sampleThreads(12));
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  const toggle = page.getByRole('button', { name: /from sender/ });
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+  await toggle.click();
+  await page.getByRole('button', { name: 'All 3 from sender' }).waitFor();
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  await page
+    .locator('.action-bar')
+    .getByRole('button', { name: /Archive 3/ })
+    .waitFor();
+  await page.screenshot({ path: `${screenshots}all-from-sender.png` });
+
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('status').filter({ hasText: 'Archived: 3 conversations' }).waitFor();
+  await settle(gmail, 3);
+  assert.deepEqual(gmail.changes.map(change => change.thread).toSorted(), ['thread000', 'thread004', 'thread008']);
+  assert.equal(await topSubject(page), 'Message number 2');
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false', 'the next card starts with the switch off');
+  await page.getByText('9 unread').waitFor();
+
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await settle(gmail, 6);
+  assert.deepEqual(
+    gmail.changes.slice(3).map(change => change.op === 'modify' && change.add),
+    [
+      ['INBOX', 'UNREAD'],
+      ['INBOX', 'UNREAD'],
+      ['INBOX', 'UNREAD'],
+    ],
+  );
+  assert.equal(await topSubject(page), 'Message number 1');
+  await page.getByText('12 unread').waitFor();
+
+  await toggle.click();
+  await page.getByRole('button', { name: 'All 3 from sender' }).waitFor();
+  await page.keyboard.press('ArrowDown');
+  await page.getByRole('status').filter({ hasText: 'Skipped: 3 conversations' }).waitFor();
+  for (const subject of ['Message number 2', 'Message number 3', 'Message number 4']) {
+    assert.equal(await topSubject(page), subject);
+    await page.keyboard.press('ArrowDown');
+    await page.waitForFunction(text => document.querySelector('.swipe-card .mail-card-subject')?.textContent !== text, subject);
+  }
+  assert.equal(await topSubject(page), 'Message number 6', "the sender's skipped conversations stay out of the deck");
+  assert.equal(gmail.changes.length, 6, 'skip changes nothing in Gmail');
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('settings change what a swipe does, and stay after a reload', async () => {
   const gmail = new FakeGmail(sampleThreads(4));
   const { page, errors } = await open(gmail);

@@ -15,7 +15,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 
 - `src/core/`: platform-neutral types and rules. Imports nothing from `web` or `worker`.
   - `actions.ts`: what actions change in Gmail, and their undo.
-  - `deck.ts`: the deck reducer and batch loading.
+  - `deck.ts`: the deck reducer, batch loading and finding all from a sender.
   - `message.ts`: Gmail threads to cards and read-view messages.
   - `settings.ts`, `gmail.ts`, `types.ts`.
 - `src/worker/`: the Worker entry (`index.ts`) and the sign-in routes (`auth.ts`).
@@ -34,7 +34,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 - **Mail never passes through the Worker.** The Worker only exchanges and renews tokens. Gmail calls go from the browser to `gmail.googleapis.com`. Do not add routes that proxy or store mail.
 - **Unsubscribe goes from the browser.** The one-click request (RFC 8058) is a `no-cors` POST straight to the sender, so the app cannot read the answer and says "sent", never "confirmed". Unsubscribe is a button, not a swipe: only conversations with a `List-Unsubscribe` header offer it. A `mailto:` unsubscribe opens the user's mail app; sending mail from nilmail would need a permission beyond `gmail.modify`.
 - **Gmail changes go through `stepsFor` and `undoSteps`.** An action removes only labels the thread has, so its undo restores the thread exactly. Cover new actions in `test/actions.test.ts`.
-- **One Gmail change at a time.** `Sorter` sends every change through its queue, so an undo cannot overtake the change it undoes. Do not call `applyToGmail` outside it.
+- **One decision at a time.** `Sorter` sends every decision's Gmail changes through its queue, so an undo cannot overtake the change it undoes. A decision that covers all from a sender changes its threads a few at a time inside one queued task (`applyChanges`), and a thread Gmail refuses goes back to the deck alone. Do not call `applyToGmail` or `applyChanges` outside the queue.
 - **The deck reducer is the only place cards move.** Screens dispatch `DeckEvent`s. Cover reducer changes in `test/deck.test.ts`.
 - **Email HTML stays sandboxed.** `MessageBody` renders it in an iframe without `allow-scripts`, with a content security policy that blocks scripts and, unless images are allowed, remote images. The frame has `allow-same-origin` only so the page can size it. Never add `allow-scripts` while `allow-same-origin` is there.
 - **The permission is `gmail.modify`.** It can read, label, archive and move to the Bin, but not delete permanently. Asking for more needs a new consent from every user. `openid email` is there only so the callback learns the account's address.

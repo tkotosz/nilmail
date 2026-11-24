@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
-import { Inbox, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
-import { actionLabels, applySteps, stepsFor, undoSteps } from '../core/actions.ts';
-import { emptyDeck, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
-import { applyToGmail } from '../core/gmail.ts';
+import { Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
+import { actionLabels, applySteps, coversSender, stepsFor, undoSteps } from '../core/actions.ts';
+import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
+import { applyChanges, applyToGmail } from '../core/gmail.ts';
 import { actionsWithoutGesture } from '../core/settings.ts';
 import { directions, type ActionId, type Direction, type MailCard, type Settings } from '../core/types.ts';
 import { actionUi, directionArrows, keyDirections } from './action-ui.ts';
@@ -29,6 +29,11 @@ interface Toast {
 
 const toastTime = { info: 5000, error: 8000 };
 
+/** "All from this sender" for the card `threadId`: looking up the sender's other conversations, or holding them. */
+type SenderChoice = { threadId: string; others: null } | { threadId: string; others: MailCard[]; more: boolean };
+
+const conversations = (count: number) => (count === 1 ? 'one conversation' : `${count} conversations`);
+
 export function Sorter({
   gmail,
   email,
@@ -46,6 +51,7 @@ export function Sorter({
   const [dialog, setDialog] = useState<'settings' | 'install' | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [unread, setUnread] = useState<number | null>(null);
+  const [sender, setSender] = useState<SenderChoice | null>(null);
   const [loadProblem, setLoadProblem] = useState<string | null>(null);
   /** Changes whenever the top card must start fresh, such as after a swipe that opened the read view. */
   const [cardVersion, setCardVersion] = useState(0);
@@ -58,6 +64,9 @@ export function Sorter({
 
   const top = deck.cards[0];
   const next = deck.cards[1];
+  /** The choice only holds for the card it was made on. */
+  const allFromSender = sender && sender.threadId === top?.threadId ? sender : null;
+  const findingSender = allFromSender?.others === null;
 
   const showToast = useCallback((toast: Omit<Toast, 'id'>) => setToast({ ...toast, id: nextId.current++ }), []);
 
@@ -73,7 +82,7 @@ export function Sorter({
     gmail.unreadInInbox().then(setUnread, () => undefined);
   }, [gmail]);
 
-  const enqueue = (task: () => Promise<void>) => {
+  const enqueue = <Result,>(task: () => Promise<Result>) => {
     const run = queue.current.then(task);
     queue.current = run.catch(() => undefined);
     return run;
@@ -105,12 +114,15 @@ export function Sorter({
   function reload() {
     generation.current++;
     dispatch({ type: 'reset' });
+    setSender(null);
     setLoadProblem(null);
     refreshUnread();
   }
 
   function openReadView(card: MailCard) {
     setReading(card);
+    // The read view's actions are about this conversation alone.
+    setSender(null);
     setCardVersion(version => version + 1);
     const steps = stepsFor('read', card, settings);
     if (!steps.length) return;
@@ -121,6 +133,19 @@ export function Sorter({
     });
   }
 
+  function toggleAllFromSender(card: MailCard) {
+    if (allFromSender) return setSender(null);
+    setSender({ threadId: card.threadId, others: null });
+    findFromSender(gmail, settings.query, card).then(
+      ({ others, more }) =>
+        setSender(current => (current?.threadId === card.threadId && !current.others ? { ...current, others, more } : current)),
+      error => {
+        setSender(current => (current?.threadId === card.threadId ? null : current));
+        report(error);
+      },
+    );
+  }
+
   function decide(card: MailCard, action: ActionId) {
     if (action === 'read') return openReadView(card);
     if (action === 'reply') window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
@@ -129,16 +154,24 @@ export function Sorter({
         showToast({ text: 'The unsubscribe request did not reach the sender. Check your connection.', tone: 'error' }),
       );
     }
-    const steps = stepsFor(action, card, settings);
+    const others = allFromSender?.threadId === card.threadId && coversSender(action) ? (allFromSender.others ?? []) : [];
+    const planned = [card, ...others].map(item => ({ card: item, steps: stepsFor(action, item, settings) }));
     const id = nextId.current++;
-    dispatch({ type: 'decided', id, card, action, undo: undoSteps(steps, card) });
+    dispatch({
+      type: 'decided',
+      decision: { id, action, changes: planned.map(({ card, steps }) => ({ card, undo: undoSteps(steps, card) })) },
+    });
+    setSender(null);
     const done =
       action === 'unsubscribe' && card.unsubscribe ? unsubscribeDone[card.unsubscribe.kind] : actionLabels[action].done;
-    showToast({ text: done, tone: 'info', decision: id });
-    if (!steps.length) return;
-    enqueue(() => applyToGmail(gmail, card.threadId, steps)).then(refreshUnread, error => {
-      dispatch({ type: 'decisionFailed', id });
-      report(error);
+    showToast({ text: others.length ? `${done}: ${conversations(planned.length)}` : done, tone: 'info', decision: id });
+    if (!planned.some(change => change.steps.length)) return;
+    const changes = planned.map(({ card, steps }) => ({ threadId: card.threadId, steps }));
+    enqueue(() => applyChanges(gmail, changes)).then(({ failed, error }) => {
+      refreshUnread();
+      if (!failed.length) return;
+      dispatch({ type: 'decisionFailed', id, threadIds: failed });
+      report(error, failed.length < changes.length ? `${conversations(failed.length)} could not be changed. ` : '');
     });
   }
 
@@ -146,9 +179,13 @@ export function Sorter({
     if (!decision) return;
     dispatch({ type: 'undone', id: decision.id });
     setToast(null);
-    if (!decision.undo.length) return;
-    enqueue(() => applyToGmail(gmail, decision.card.threadId, decision.undo)).then(refreshUnread, error => {
-      dispatch({ type: 'undoFailed', decision });
+    const changes = decision.changes.map(({ card, undo }) => ({ threadId: card.threadId, steps: undo }));
+    if (!changes.some(change => change.steps.length)) return;
+    enqueue(() => applyChanges(gmail, changes)).then(({ failed, error }) => {
+      refreshUnread();
+      if (!failed.length) return;
+      const stuck = decision.changes.filter(change => failed.includes(change.card.threadId));
+      dispatch({ type: 'undoFailed', decision: { ...decision, changes: stuck } });
       report(error, 'Could not undo. ');
     });
   }
@@ -168,10 +205,17 @@ export function Sorter({
 
   useSwipeKeys(card, Boolean(top) && !reading && !dialog, keyDirections);
 
-  const swipeActions: SwipeAction[] = directions.map(direction => {
-    const action = settings.gestures[direction];
-    return { direction, label: actionLabels[action].verb, tone: actionUi[action].tone };
-  });
+  /** How many conversations an action covers when it covers all from the sender, such as "15" or "100+". */
+  const senderCount = allFromSender?.others?.length && `${allFromSender.others.length + 1}${allFromSender.more ? '+' : ''}`;
+  const verb = (action: ActionId) =>
+    senderCount && coversSender(action) ? `${actionLabels[action].verb} ${senderCount}` : actionLabels[action].verb;
+  // While the sender's conversations are being found, the card stays put: a swipe would not know what it covers.
+  const swipeActions: SwipeAction[] = findingSender
+    ? []
+    : directions.map(direction => {
+        const action = settings.gestures[direction];
+        return { direction, label: verb(action), tone: actionUi[action].tone };
+      });
   const extraActions: ActionId[] = [...actionsWithoutGesture(settings), ...(top?.unsubscribe ? ['unsubscribe' as const] : [])];
   const lastDecision = deck.history.at(-1);
   const waiting = deck.loading || (deck.more && !loadProblem);
@@ -225,23 +269,37 @@ export function Sorter({
               onAction={direction => decide(top, settings.gestures[direction])}
             >
               <MailCardView card={top}>
-                {extraActions.length > 0 && (
-                  <NoDrag className="card-extras">
-                    {extraActions.map(action => {
-                      const { Icon, tone } = actionUi[action];
-                      return (
-                        <button
-                          key={action}
-                          type="button"
-                          className={`chip-button tone-${tone}`}
-                          onClick={() => decide(top, action)}
-                        >
-                          <Icon size={15} aria-hidden="true" /> {actionLabels[action].verb}
-                        </button>
-                      );
-                    })}
-                  </NoDrag>
-                )}
+                <NoDrag className="card-extras">
+                  <button
+                    type="button"
+                    className="chip-button sender-toggle"
+                    aria-pressed={Boolean(allFromSender)}
+                    onClick={() => toggleAllFromSender(top)}
+                  >
+                    <Layers size={15} aria-hidden="true" />{' '}
+                    {findingSender
+                      ? 'Finding all from sender…'
+                      : allFromSender
+                        ? senderCount
+                          ? `All ${senderCount} from sender`
+                          : 'No others from sender'
+                        : 'All from sender'}
+                  </button>
+                  {extraActions.map(action => {
+                    const { Icon, tone } = actionUi[action];
+                    return (
+                      <button
+                        key={action}
+                        type="button"
+                        className={`chip-button tone-${tone}`}
+                        disabled={findingSender}
+                        onClick={() => decide(top, action)}
+                      >
+                        <Icon size={15} aria-hidden="true" /> {verb(action)}
+                      </button>
+                    );
+                  })}
+                </NoDrag>
               </MailCardView>
             </SwipeCard>
           </div>
@@ -284,11 +342,11 @@ export function Sorter({
               key={direction}
               type="button"
               className={`action-button tone-${tone}`}
-              disabled={!top}
+              disabled={!top || findingSender}
               onClick={() => void card.current?.swipe(direction)}
             >
               <Icon size={22} aria-hidden="true" />
-              <span>{actionLabels[action].verb}</span>
+              <span>{verb(action)}</span>
               <kbd aria-hidden="true">{directionArrows[direction]}</kbd>
             </button>
           );

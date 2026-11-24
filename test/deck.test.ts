@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { emptyDeck, historyLimit, loadCards, needsCards, reduceDeck, type DeckState } from '../src/core/deck.ts';
-import type { Gmail, GmailThread } from '../src/core/gmail.ts';
-import type { MailCard } from '../src/core/types.ts';
+import {
+  emptyDeck,
+  findFromSender,
+  historyLimit,
+  loadCards,
+  needsCards,
+  reduceDeck,
+  senderQuery,
+  type DeckEvent,
+  type DeckState,
+} from '../src/core/deck.ts';
+import { applyChanges, type Gmail, type GmailThread } from '../src/core/gmail.ts';
+import type { ActionId, MailCard } from '../src/core/types.ts';
 
 const card = (threadId: string, labelIds = ['INBOX', 'UNREAD']): MailCard => ({
   threadId,
@@ -16,12 +26,19 @@ const card = (threadId: string, labelIds = ['INBOX', 'UNREAD']): MailCard => ({
   unsubscribe: null,
 });
 
+const decided = (id: number, cards: MailCard[], action: ActionId = 'archive'): DeckEvent => ({
+  type: 'decided',
+  decision: { id, action, changes: cards.map(card => ({ card, undo: [] })) },
+});
+
+const ids = (state: DeckState) => state.cards.map(item => item.threadId);
+
 const loaded = (state: DeckState, ids: string[], more = true) =>
   reduceDeck(reduceDeck(state, { type: 'loading' }), { type: 'loaded', cards: ids.map(id => card(id)), more });
 
 test('a batch adds only threads the deck has not seen since the last reload', () => {
   let state = loaded(emptyDeck, ['a', 'b']);
-  state = reduceDeck(state, { type: 'decided', id: 1, card: card('a'), action: 'skip', undo: [] });
+  state = reduceDeck(state, decided(1, [card('a')], 'skip'));
   state = loaded(state, ['a', 'b', 'c']);
   assert.deepEqual(
     state.cards.map(item => item.threadId),
@@ -38,7 +55,7 @@ test('a batch adds only threads the deck has not seen since the last reload', ()
 
 test('a reload keeps the decisions undoable, and an undone thread does not come back a second time', () => {
   let state = loaded(emptyDeck, ['a', 'b']);
-  state = reduceDeck(state, { type: 'decided', id: 1, card: card('a'), action: 'archive', undo: [] });
+  state = reduceDeck(state, decided(1, [card('a')], 'archive'));
   state = reduceDeck(state, { type: 'reset' });
   assert.deepEqual(state.cards, []);
   assert.equal(state.history.length, 1);
@@ -53,7 +70,7 @@ test('a reload keeps the decisions undoable, and an undone thread does not come 
 
 test('a decision leaves the deck, and undo or a failure in Gmail puts it back on top', () => {
   let state = loaded(emptyDeck, ['a', 'b', 'c']);
-  state = reduceDeck(state, { type: 'decided', id: 1, card: card('b'), action: 'archive', undo: [] });
+  state = reduceDeck(state, decided(1, [card('b')], 'archive'));
   assert.deepEqual(
     state.cards.map(item => item.threadId),
     ['a', 'c'],
@@ -66,7 +83,7 @@ test('a decision leaves the deck, and undo or a failure in Gmail puts it back on
     ['b', 'a', 'c'],
   );
   assert.equal(undone.history.length, 0);
-  assert.deepEqual(reduceDeck(state, { type: 'decisionFailed', id: 1 }).cards, undone.cards);
+  assert.deepEqual(reduceDeck(state, { type: 'decisionFailed', id: 1, threadIds: ['b'] }).cards, undone.cards);
   assert.equal(reduceDeck(undone, { type: 'undone', id: 1 }), undone, 'an unknown decision changes nothing');
 
   const failedUndo = reduceDeck(undone, { type: 'undoFailed', decision: state.history[0] });
@@ -77,13 +94,46 @@ test('a decision leaves the deck, and undo or a failure in Gmail puts it back on
   assert.deepEqual(failedUndo.history, state.history);
 });
 
+test('a decision over all from a sender takes every card out, keeps unseen threads out of later batches, and undoes at once', () => {
+  let state = loaded(emptyDeck, ['a', 'b', 'c', 'd']);
+  state = reduceDeck(state, decided(1, [card('b'), card('d'), card('x')]));
+  assert.deepEqual(ids(state), ['a', 'c']);
+  assert.deepEqual(ids(loaded(state, ['x', 'y'])), ['a', 'c', 'y'], 'x had not reached the deck yet, and stays out');
+
+  const undone = reduceDeck(state, { type: 'undone', id: 1 });
+  assert.deepEqual(ids(undone), ['b', 'd', 'x', 'a', 'c'], 'the card acted on comes back on top, then the others');
+  assert.deepEqual(undone.history, []);
+});
+
+test('when Gmail refuses some threads of a decision, only those come back, and undo covers the rest', () => {
+  let state = loaded(emptyDeck, ['a', 'b', 'c']);
+  state = reduceDeck(state, decided(1, [card('a'), card('b'), card('x')]));
+  state = reduceDeck(state, { type: 'decisionFailed', id: 1, threadIds: ['b'] });
+  assert.deepEqual(ids(state), ['b', 'c']);
+  assert.deepEqual(
+    state.history[0]!.changes.map(change => change.card.threadId),
+    ['a', 'x'],
+  );
+  assert.deepEqual(reduceDeck(state, { type: 'decisionFailed', id: 1, threadIds: ['a', 'x'] }).history, []);
+
+  const decision = state.history[0]!;
+  state = reduceDeck(state, { type: 'undone', id: 1 });
+  assert.deepEqual(ids(state), ['a', 'x', 'b', 'c']);
+  state = reduceDeck(state, { type: 'undoFailed', decision: { ...decision, changes: decision.changes.slice(1) } });
+  assert.deepEqual(ids(state), ['a', 'b', 'c'], 'the thread that could not be undone leaves again');
+  assert.deepEqual(
+    state.history[0]!.changes.map(change => change.card.threadId),
+    ['x'],
+  );
+});
+
 test('history keeps the latest decisions only', () => {
   let state = loaded(
     emptyDeck,
     Array.from({ length: 30 }, (_, index) => `t${index}`),
   );
   for (let index = 0; index < 25; index++) {
-    state = reduceDeck(state, { type: 'decided', id: index, card: card(`t${index}`), action: 'skip', undo: [] });
+    state = reduceDeck(state, decided(index, [card(`t${index}`)], 'skip'));
   }
   assert.equal(state.history.length, historyLimit);
   assert.equal(state.history[0].id, 5);
@@ -138,4 +188,42 @@ test('loading starts from the first page and pages past threads already seen', a
 
   const none = await loadCards(gmail, 'in:inbox', new Set(['a', 'b', 'c', 'd', 'e', 'f']));
   assert.deepEqual(none, { cards: [], more: false });
+});
+
+test('the sender search narrows the deck search to one address', () => {
+  assert.equal(senderQuery('in:inbox is:unread', 'ann@example.com'), '(in:inbox is:unread) from:"ann@example.com"');
+  assert.equal(senderQuery('label:a OR label:b', 'odd"@example.com'), '(label:a OR label:b) from:"odd@example.com"');
+});
+
+test('finding all from a sender leaves out the card itself', async () => {
+  const gmail = fakeGmail([['a', 'b', 'c']]);
+  const queries: string[] = [];
+  const list = gmail.listThreads;
+  gmail.listThreads = (query, pageToken) => (queries.push(query), list(query, pageToken));
+  const result = await findFromSender(gmail, 'in:inbox', card('b'));
+  assert.deepEqual(
+    result.others.map(item => item.threadId),
+    ['a', 'c'],
+  );
+  assert.equal(result.more, false);
+  assert.deepEqual(queries, ['(in:inbox) from:"ann@example.com"']);
+});
+
+test('applying changes to many threads goes on past a refusal and reports which threads failed', async () => {
+  const done: string[] = [];
+  const gmail = fakeGmail([]);
+  gmail.modifyThread = async id => {
+    if (id === 'b') throw new Error('refused');
+    done.push(id);
+  };
+  const steps = [{ op: 'modify' as const, add: [], remove: ['INBOX'] }];
+  const result = await applyChanges(
+    gmail,
+    ['a', 'b', 'c', 'd'].map(threadId => ({ threadId, steps })).concat({ threadId: 'skip', steps: [] }),
+    2,
+  );
+  assert.deepEqual(result.failed, ['b']);
+  assert.equal((result.error as Error).message, 'refused');
+  assert.deepEqual(done.toSorted(), ['a', 'c', 'd']);
+  assert.deepEqual(await applyChanges(gmail, [{ threadId: 'a', steps }]), { failed: [] });
 });
