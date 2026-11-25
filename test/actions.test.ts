@@ -104,3 +104,8 @@ test('a card keeps up with its label changes', () => {
     'STARRED',
   ]);
 });
+
+test('a swipe that covers all from the sender says so', () => {
+  assert.equal(actionVerb({ ...swipe('archive'), allFromSender: true }), 'Archive all');
+  assert.equal(actionVerb({ ...swipe('read'), allFromSender: true }), 'Read', 'reading covers one conversation');
+});

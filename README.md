@@ -21,7 +21,8 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
 
   The same actions are on the buttons under the card and on the arrow keys.
 - **Label actions** move mail between piles: Add labels (one or more, and optionally archive), Remove label, and Remove all labels (only labels you made; Inbox, Starred and the like stay).
-- **Card buttons.** All from sender applies the next action to every conversation from that sender in the deck. Unsubscribe shows when the sender offers it.
+- **All from the sender.** A swipe can be set, in its settings, to cover every conversation from the card's sender in the pile (up to 100), with one undo.
+- **Unsubscribe** is in the read view's top bar when the sender offers it.
 - **The read view** (swipe up) also offers Reply, which opens the conversation in Gmail, and Skip.
 - **Material 3 design**, in light and dark, following the system setting.
 - **Undo** reverses any of the last 20 actions in Gmail. Use the bar that appears after each action, or Ctrl+Z.

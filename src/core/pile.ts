@@ -99,7 +99,12 @@ export function pileSummary(filters: PileFilters): string {
     .join(' · ');
 }
 
-export const swipe = (action: Swipe['action'], labels: GmailLabel[] = [], archive = true): Swipe => ({ action, labels, archive });
+export const swipe = (action: Swipe['action'], labels: GmailLabel[] = [], archive = true): Swipe => ({
+  action,
+  labels,
+  archive,
+  allFromSender: false,
+});
 
 const swipes = (down: Swipe['action']): Record<Direction, Swipe> => ({
   right: swipe('archive'),

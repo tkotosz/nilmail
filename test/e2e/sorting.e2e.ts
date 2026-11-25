@@ -392,15 +392,12 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-test('cards offer no extra action buttons; reply, from the read view, opens the conversation in Gmail', async () => {
+test('cards have no buttons of their own; reply, from the read view, opens the conversation in Gmail', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   const { page } = await open(gmail);
   await page.context().route('https://mail.google.com/**', route => route.fulfill({ body: 'Gmail' }));
   await waitForCard(page);
-  assert.deepEqual(
-    (await page.locator('.card-extras button').allTextContents()).map(text => text.trim()),
-    ['All from sender'],
-  );
+  assert.equal(await page.locator('.swipe-card button').count(), 0, 'the card itself has no buttons');
   await page.keyboard.press('ArrowUp');
   const view = page.locator('dialog.read-view');
   await view.waitFor();
@@ -430,15 +427,22 @@ test("Unsubscribe sends the one-click request from the browser and archives; a w
   await waitForCard(page);
   await page.screenshot({ path: `${screenshots}unsubscribe.png` });
 
-  await page.locator('.card-extras').getByRole('button', { name: 'Unsubscribe' }).click();
+  assert.equal(await page.locator('.swipe-card button').count(), 0, 'the card itself has no buttons');
+  await page.keyboard.press('ArrowUp');
+  const view = page.locator('dialog.read-view');
+  await view.waitFor();
+  await view.getByRole('button', { name: 'Unsubscribe and archive' }).click();
   await page.getByRole('status').filter({ hasText: 'Unsubscribed and archived' }).waitFor();
-  await settle(gmail, 1);
+  await settle(gmail, 2);
   assert.deepEqual(sent, [{ method: 'POST', body: 'List-Unsubscribe=One-Click', cookie: undefined }]);
-  assert.deepEqual(gmail.changes[0], { thread: 'thread000', op: 'modify', add: [], remove: ['INBOX', 'UNREAD'] });
+  assert.deepEqual(
+    gmail.changes[1],
+    { thread: 'thread000', op: 'modify', add: [], remove: ['INBOX'] },
+    'opening it marked it read',
+  );
   assert.equal(await topSubject(page), 'Message number 2');
 
   await page.keyboard.press('ArrowUp');
-  const view = page.locator('dialog.read-view');
   await view.waitFor();
   const [popup] = await Promise.all([
     page.waitForEvent('popup'),
@@ -446,25 +450,30 @@ test("Unsubscribe sends the one-click request from the browser and archives; a w
   ]);
   assert.equal(popup.url(), 'https://shop.example/preferences');
   await page.getByRole('status').filter({ hasText: 'Finish unsubscribing in the new tab' }).waitFor();
-  await settle(gmail, 3);
-  assert.deepEqual(gmail.changes[2], { thread: 'thread001', op: 'modify', add: [], remove: ['INBOX'] });
-  assert.equal(await page.locator('.card-extras').getByRole('button', { name: 'Unsubscribe' }).count(), 0);
+  await settle(gmail, 4);
+  assert.deepEqual(gmail.changes[3], { thread: 'thread001', op: 'modify', add: [], remove: ['INBOX'] });
   assert.deepEqual(errors, []);
   await page.context().close();
 });
 
-test('All from sender applies one swipe to every unread conversation from the sender, with one undo', async () => {
+test('a swipe set to all from the sender sorts every unread conversation from them, with one undo', async () => {
+  const fromSender = (action: string) => ({ action, labels: [], archive: true, allFromSender: true });
+  const settings = {
+    piles: [
+      {
+        id: 'unread',
+        name: 'Unread',
+        filters: { read: 'unread', where: 'inbox' },
+        swipes: { right: fromSender('archive'), down: fromSender('skip') },
+      },
+    ],
+  };
   const gmail = new FakeGmail(sampleThreads(12));
-  const { page, errors } = await open(gmail, { settings: downSkips });
+  const { page, errors } = await open(gmail, { settings });
   await waitForCard(page);
-  const toggle = page.getByRole('button', { name: /from sender/ });
-  assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
-  await toggle.click();
-  await page.getByRole('button', { name: 'All 3 from sender' }).waitFor();
-  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
   await page
     .locator('.action-bar')
-    .getByRole('button', { name: /Archive 3/ })
+    .getByRole('button', { name: /Archive all/ })
     .waitFor();
   await page.screenshot({ path: `${screenshots}all-from-sender.png` });
 
@@ -473,7 +482,6 @@ test('All from sender applies one swipe to every unread conversation from the se
   await settle(gmail, 3);
   assert.deepEqual(gmail.changes.map(change => change.thread).toSorted(), ['thread000', 'thread004', 'thread008']);
   assert.equal(await topSubject(page), 'Message number 2');
-  assert.equal(await toggle.getAttribute('aria-pressed'), 'false', 'the next card starts with the switch off');
   await waitForCount(page, 'Unread · 9');
 
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -486,20 +494,25 @@ test('All from sender applies one swipe to every unread conversation from the se
       ['INBOX', 'UNREAD'],
     ],
   );
-  assert.equal(await topSubject(page), 'Message number 1');
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 1');
   await waitForCount(page, 'Unread · 12');
 
-  await toggle.click();
-  await page.getByRole('button', { name: 'All 3 from sender' }).waitFor();
   await page.keyboard.press('ArrowDown');
   await page.getByRole('status').filter({ hasText: 'Skipped: 3 conversations' }).waitFor();
   for (const subject of ['Message number 2', 'Message number 3', 'Message number 4']) {
-    assert.equal(await topSubject(page), subject);
+    await page.waitForFunction(text => document.querySelector('.swipe-card .mail-card-subject')?.textContent === text, subject);
     await page.keyboard.press('ArrowDown');
-    await page.waitForFunction(text => document.querySelector('.swipe-card .mail-card-subject')?.textContent !== text, subject);
+    await page.getByRole('status').filter({ hasText: 'Skipped: 3 conversations' }).waitFor();
   }
-  assert.equal(await topSubject(page), 'Message number 6', "the sender's skipped conversations stay out of the deck");
+  await page.getByRole('heading', { name: 'Nothing left to sort' }).waitFor();
   assert.equal(gmail.changes.length, 6, 'skip changes nothing in Gmail');
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: /^Edit Unread/ }).click();
+  await page.getByRole('button', { name: 'Right swipe: Archive, all from the sender' }).click();
+  assert.ok(await page.getByRole('switch', { name: /All from this sender/ }).isChecked());
+  await page.getByRole('radio', { name: 'Read', exact: true }).check();
+  assert.equal(await page.getByRole('switch', { name: /All from this sender/ }).count(), 0, 'reading is about one conversation');
   assert.deepEqual(errors, []);
   await page.context().close();
 });

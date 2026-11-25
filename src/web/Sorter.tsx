@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
-import { Check, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
+import { Inbox, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
 import { actionDone, actionVerb, applySteps, coversSender, isUnread, stepsFor, undoSteps } from '../core/actions.ts';
 import { countFromLabel, pileCount, pileSearch, swipe } from '../core/pile.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyChanges, applyToGmail } from '../core/gmail.ts';
 import { withCurrentLabels } from '../core/settings.ts';
-import { directions, type Direction, type MailCard, type Pile, type Settings, type Swipe } from '../core/types.ts';
+import {
+  directions,
+  type Direction,
+  type GmailStep,
+  type MailCard,
+  type Pile,
+  type Settings,
+  type Swipe,
+} from '../core/types.ts';
 import { actionUi, directionArrows, keyDirections } from './action-ui.ts';
 import { InstallButton } from './components/InstallButton.tsx';
-import { MailCardView, NoDrag } from './components/MailCardView.tsx';
+import { MailCardView } from './components/MailCardView.tsx';
 import { Modal } from './components/Modal.tsx';
 import { ReadView } from './components/ReadView.tsx';
 import { SettingsForm } from './components/SettingsForm.tsx';
@@ -29,9 +37,6 @@ interface Toast {
 }
 
 const toastTime = { info: 5000, error: 8000 };
-
-/** "All from this sender" for the card `threadId`: looking up the sender's other conversations, or holding them. */
-type SenderChoice = { threadId: string; others: null } | { threadId: string; others: MailCard[]; more: boolean };
 
 /** How many conversations a pile holds: exact, or Gmail's estimate for its search. */
 interface PileCount {
@@ -65,7 +70,6 @@ export function Sorter({
   const [counts, setCounts] = useState<Record<string, PileCount>>({});
   /** Each visit starts on the first pile: the choice is not saved. */
   const [pileId, setPileId] = useState(() => settings.piles[0]!.id);
-  const [sender, setSender] = useState<SenderChoice | null>(null);
   const [loadProblem, setLoadProblem] = useState<string | null>(null);
   /** Changes whenever the top card must start fresh, such as after a swipe that opened the read view. */
   const [cardVersion, setCardVersion] = useState(0);
@@ -84,9 +88,8 @@ export function Sorter({
   const deckSearch = useRef(searchKey);
   const top = deck.cards[0];
   const next = deck.cards[1];
-  /** The choice only holds for the card it was made on. */
-  const allFromSender = sender && sender.threadId === top?.threadId ? sender : null;
-  const findingSender = allFromSender?.others === null;
+  /** Decisions undone while their sender's other conversations were still being found: those then stay as they are. */
+  const undoneEarly = useRef(new Set<number>());
 
   const showToast = useCallback((toast: Omit<Toast, 'id'>) => setToast({ ...toast, id: nextId.current++ }), []);
 
@@ -164,7 +167,6 @@ export function Sorter({
   function reload() {
     generation.current++;
     dispatch({ type: 'reset' });
-    setSender(null);
     setLoadProblem(null);
     refreshCounts();
   }
@@ -180,8 +182,6 @@ export function Sorter({
 
   function openReadView(card: MailCard) {
     setReading(card);
-    // The read view's actions are about this conversation alone.
-    setSender(null);
     setCardVersion(version => version + 1);
     const steps = stepsFor(swipe('read'), card, settings);
     if (!steps.length) return;
@@ -190,19 +190,6 @@ export function Sorter({
       dispatch({ type: 'cardChanged', card });
       report(error);
     });
-  }
-
-  function toggleAllFromSender(card: MailCard) {
-    if (allFromSender) return setSender(null);
-    setSender({ threadId: card.threadId, others: null });
-    findFromSender(gmail, search, card).then(
-      ({ others, more }) =>
-        setSender(current => (current?.threadId === card.threadId && !current.others ? { ...current, others, more } : current)),
-      error => {
-        setSender(current => (current?.threadId === card.threadId ? null : current));
-        report(error);
-      },
-    );
   }
 
   function decide(card: MailCard, chosen: Swipe) {
@@ -216,28 +203,40 @@ export function Sorter({
         showToast({ text: 'The unsubscribe request did not reach the sender. Check your connection.', tone: 'error' }),
       );
     }
-    const others = allFromSender?.threadId === card.threadId && coversSender(action) ? (allFromSender.others ?? []) : [];
-    const planned = [card, ...others].map(item => ({ card: item, steps: stepsFor(done, item, settings) }));
+    const planned = { card, steps: stepsFor(done, card, settings) };
     const id = nextId.current++;
-    dispatch({
-      type: 'decided',
-      decision: { id, action, changes: planned.map(({ card, steps }) => ({ card, undo: undoSteps(steps, card) })) },
-    });
-    setSender(null);
+    dispatch({ type: 'decided', decision: { id, action, changes: [{ card, undo: undoSteps(planned.steps, card) }] } });
     const text = action === 'unsubscribe' && card.unsubscribe ? unsubscribeDone[card.unsubscribe.kind] : actionDone(done);
-    showToast({ text: others.length ? `${text}: ${conversations(planned.length)}` : text, tone: 'info', decision: id });
-    if (!planned.some(change => change.steps.length)) return;
-    const changes = planned.map(({ card, steps }) => ({ threadId: card.threadId, steps }));
-    enqueue(() => applyChanges(gmail, changes)).then(({ failed, error }) => {
+    const withSender = done.allFromSender && coversSender(action);
+    showToast({ text: withSender ? `${text}: finding all from the sender…` : text, tone: 'info', decision: id });
+    // The sender's other conversations are found after the swipe, inside the same queued task, so an undo always comes
+    // after the changes it undoes.
+    enqueue(async () => {
+      let others: { card: MailCard; steps: GmailStep[] }[] = [];
+      if (withSender) {
+        try {
+          const found = await findFromSender(gmail, search, card);
+          others = found.others.map(item => ({ card: item, steps: stepsFor(done, item, settings) }));
+        } catch (error) {
+          report(error, 'The sender’s other conversations could not be found. ');
+        }
+        if (undoneEarly.current.has(id)) return { failed: [] };
+        dispatch({ type: 'joined', id, changes: others.map(({ card, steps }) => ({ card, undo: undoSteps(steps, card) })) });
+        showToast({ text: `${text}: ${conversations(others.length + 1)}`, tone: 'info', decision: id });
+      }
+      const changes = [planned, ...others].map(({ card, steps }) => ({ threadId: card.threadId, steps }));
+      return applyChanges(gmail, changes).then(result => ({ ...result, count: changes.length }));
+    }).then(({ failed, error, count }: { failed: string[]; error?: unknown; count?: number }) => {
       refreshCounts();
       if (!failed.length) return;
       dispatch({ type: 'decisionFailed', id, threadIds: failed });
-      report(error, failed.length < changes.length ? `${conversations(failed.length)} could not be changed. ` : '');
+      report(error, failed.length < (count ?? 1) ? `${conversations(failed.length)} could not be changed. ` : '');
     });
   }
 
   function undo(decision: Decision | undefined = deck.history.at(-1)) {
     if (!decision) return;
+    undoneEarly.current.add(decision.id);
     dispatch({ type: 'undone', id: decision.id });
     setToast(null);
     const changes = decision.changes.map(({ card, undo }) => ({ threadId: card.threadId, steps: undo }));
@@ -266,17 +265,10 @@ export function Sorter({
 
   useSwipeKeys(card, Boolean(top) && !reading && !dialog, keyDirections);
 
-  /** How many conversations an action covers when it covers all from the sender, such as "15" or "100+". */
-  const senderCount = allFromSender?.others?.length && `${allFromSender.others.length + 1}${allFromSender.more ? '+' : ''}`;
-  const verb = (chosen: Swipe) =>
-    senderCount && coversSender(chosen.action) ? `${actionVerb(chosen)} ${senderCount}` : actionVerb(chosen);
-  // While the sender's conversations are being found, the card stays put: a swipe would not know what it covers.
-  const swipeActions: SwipeAction[] = findingSender
-    ? []
-    : directions.map(direction => {
-        const chosen = pile.swipes[direction];
-        return { direction, label: verb(chosen), tone: actionUi[chosen.action].tone };
-      });
+  const swipeActions: SwipeAction[] = directions.map(direction => {
+    const chosen = pile.swipes[direction];
+    return { direction, label: actionVerb(chosen), tone: actionUi[chosen.action].tone };
+  });
   const count = counts[pile.id];
   const lastDecision = deck.history.at(-1);
   const waiting = deck.loading || (deck.more && !loadProblem);
@@ -352,35 +344,7 @@ export function Sorter({
               actions={swipeActions}
               onAction={direction => decide(top, pile.swipes[direction])}
             >
-              <MailCardView card={top}>
-                <NoDrag className="card-extras">
-                  <button
-                    type="button"
-                    className="chip-button sender-toggle"
-                    aria-pressed={Boolean(allFromSender)}
-                    onClick={() => toggleAllFromSender(top)}
-                  >
-                    {allFromSender ? <Check size={18} aria-hidden="true" /> : <Layers size={18} aria-hidden="true" />}{' '}
-                    {findingSender
-                      ? 'Finding all from sender…'
-                      : allFromSender
-                        ? senderCount
-                          ? `All ${senderCount} from sender`
-                          : 'No others from sender'
-                        : 'All from sender'}
-                  </button>
-                  {top.unsubscribe && (
-                    <button
-                      type="button"
-                      className={`chip-button tone-${actionUi.unsubscribe.tone}`}
-                      disabled={findingSender}
-                      onClick={() => decide(top, swipe('unsubscribe'))}
-                    >
-                      <actionUi.unsubscribe.Icon size={15} aria-hidden="true" /> {verb(swipe('unsubscribe'))}
-                    </button>
-                  )}
-                </NoDrag>
-              </MailCardView>
+              <MailCardView card={top} />
             </SwipeCard>
           </div>
         ) : waiting ? (
@@ -429,11 +393,11 @@ export function Sorter({
               key={direction}
               type="button"
               className={`action-button tone-${tone}`}
-              disabled={!top || findingSender}
+              disabled={!top}
               onClick={() => void card.current?.swipe(direction)}
             >
               <Icon size={22} aria-hidden="true" />
-              <span>{verb(chosen)}</span>
+              <span>{actionVerb(chosen)}</span>
               <kbd aria-hidden="true">{directionArrows[direction]}</kbd>
             </button>
           );

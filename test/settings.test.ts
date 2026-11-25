@@ -116,3 +116,18 @@ test('labels take their current names from Gmail, and a deleted one drops out', 
   assert.deepEqual(gone.swipes.right, swipe('skip'), 'a swipe without its label skips');
   assert.deepEqual(gone.swipes.left, swipe('skip'));
 });
+
+test('a swipe can cover all from the sender, where its action allows', () => {
+  const restored = restoreSettings({
+    piles: [
+      {
+        id: 'p',
+        name: 'P',
+        swipes: { right: { action: 'archive', allFromSender: true }, up: { action: 'read', allFromSender: true } },
+      },
+    ],
+  }).piles[0]!;
+  assert.equal(restored.swipes.right.allFromSender, true);
+  assert.equal(restored.swipes.up.allFromSender, false, 'reading is about one conversation');
+  assert.equal(restored.swipes.left.allFromSender, false);
+});

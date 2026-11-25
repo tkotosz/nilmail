@@ -1,3 +1,4 @@
+import { coversSender } from './actions.ts';
 import { categoryNames, defaultSwipes, emptyFilters, swipe, unreadPile } from './pile.ts';
 import {
   directions,
@@ -49,9 +50,10 @@ function restoreSwipe(saved: unknown, fallback: Swipe): Swipe {
   if (!gestureActionIds.includes(action)) return fallback;
   const labels = restoreLabels(input.labels);
   const archive = typeof input.archive === 'boolean' ? input.archive : true;
-  if (action === 'addLabels') return labels.length ? swipe(action, labels, archive) : fallback;
-  if (action === 'removeLabel') return labels.length ? swipe(action, labels.slice(0, 1)) : fallback;
-  return swipe(action);
+  const allFromSender = input.allFromSender === true && coversSender(action);
+  if (action === 'addLabels') return labels.length ? { ...swipe(action, labels, archive), allFromSender } : fallback;
+  if (action === 'removeLabel') return labels.length ? { ...swipe(action, labels.slice(0, 1)), allFromSender } : fallback;
+  return { ...swipe(action), allFromSender };
 }
 
 function restoreSwipes(saved: unknown, fallback: Record<Direction, Swipe>): Record<Direction, Swipe> {

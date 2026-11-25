@@ -46,6 +46,8 @@ export type DeckEvent =
   | { type: 'undone'; id: number }
   /** Gmail refused to undo the decision's threads: their cards leave again and can be undone once more. */
   | { type: 'undoFailed'; decision: Decision }
+  /** More conversations join decision `id`, such as the sender's others, found after the swipe: they leave the deck too. */
+  | { type: 'joined'; id: number; changes: ThreadChange[] }
   /** The card changed in place, for example after the read view marked it read. */
   | { type: 'cardChanged'; card: MailCard }
   /** Starts the deck again from the newest thread, skipped ones included. */
@@ -109,6 +111,18 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
         cards: withoutThreads(state.cards, threadIds(event.decision)),
         history: [...state.history, event.decision].slice(-historyLimit),
       };
+    case 'joined': {
+      if (!state.history.some(item => item.id === event.id)) return state;
+      const ids = new Set(event.changes.map(change => change.card.threadId));
+      return {
+        ...state,
+        cards: withoutThreads(state.cards, ids),
+        seen: union(state.seen, ids),
+        history: state.history.map(item =>
+          item.id === event.id ? { ...item, changes: [...item.changes, ...event.changes] } : item,
+        ),
+      };
+    }
     case 'cardChanged':
       return { ...state, cards: state.cards.map(card => (card.threadId === event.card.threadId ? event.card : card)) };
     case 'reset':

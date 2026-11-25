@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Tag, Trash2 } from 'lucide-react';
-import { actionLabels } from '../../core/actions.ts';
+import { actionLabels, coversSender } from '../../core/actions.ts';
 import { categoryNames, moreFiltersSummary, pileSummary, swipe } from '../../core/pile.ts';
 import {
   gestureActionIds,
@@ -30,9 +30,10 @@ const names = (labels: GmailLabel[]) => labels.map(label => label.name).join(', 
 
 /** What a swipe does, in words, such as "Delete" or "Add labels: Later, and archive". */
 export function swipeText(chosen: Swipe): string {
-  if (chosen.action === 'addLabels') return `Add ${names(chosen.labels)}${chosen.archive ? ', and archive' : ''}`;
-  if (chosen.action === 'removeLabel') return `Remove ${names(chosen.labels)}`;
-  return actionLabels[chosen.action].verb;
+  const sender = chosen.allFromSender && coversSender(chosen.action) ? ', all from the sender' : '';
+  if (chosen.action === 'addLabels') return `Add ${names(chosen.labels)}${chosen.archive ? ', and archive' : ''}${sender}`;
+  if (chosen.action === 'removeLabel') return `Remove ${names(chosen.labels)}${sender}`;
+  return `${actionLabels[chosen.action].verb}${sender}`;
 }
 
 function ActionIcon({ action }: { action: ActionId }) {
@@ -228,12 +229,16 @@ function PileMain({
 
 /** A swipe switched to `action`: label actions start with a sensible label, which the user can change. */
 function switchedSwipe(action: ActionId, pile: Pile, known: GmailLabel[], previous: Swipe): Swipe {
-  if (action === 'addLabels') return swipe(action, previous.action === 'addLabels' ? previous.labels : [], true);
+  // All from the sender carries over to the new action, where it can apply.
+  const allFromSender = previous.allFromSender && coversSender(action);
+  if (action === 'addLabels') {
+    return { ...swipe(action, previous.action === 'addLabels' ? previous.labels : [], true), allFromSender };
+  }
   if (action === 'removeLabel') {
     const first = pile.filters.hasLabels[0] ?? known[0];
-    return swipe(action, first ? [first] : []);
+    return { ...swipe(action, first ? [first] : []), allFromSender };
   }
-  return swipe(action);
+  return { ...swipe(action), allFromSender };
 }
 
 function SwipePage({
@@ -272,6 +277,16 @@ function SwipePage({
           />
         ))}
       </Group>
+      {coversSender(current.action) && (
+        <Group>
+          <SwitchRow
+            title="All from this sender"
+            value="Also sorts the sender's other conversations in this pile, up to 100, with one undo."
+            checked={current.allFromSender}
+            onChange={allFromSender => onChange({ ...current, allFromSender })}
+          />
+        </Group>
+      )}
       {current.action === 'addLabels' && (
         <>
           <Group title="Labels to add">

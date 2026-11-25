@@ -243,3 +243,31 @@ test('applying changes to many threads goes on past a refusal and reports which 
   assert.deepEqual(done.toSorted(), ['a', 'c', 'd']);
   assert.deepEqual(await applyChanges(gmail, [{ threadId: 'a', steps }]), { failed: [] });
 });
+
+test("the sender's other conversations join a decision after it, and leave the deck with it", () => {
+  const start = loaded(emptyDeck, ['a', 'b', 'c']);
+  const decided = reduceDeck(start, {
+    type: 'decided',
+    decision: { id: 1, action: 'archive', changes: [{ card: card('a'), undo: [] }] },
+  });
+  const joined = reduceDeck(decided, { type: 'joined', id: 1, changes: [{ card: card('c'), undo: [] }] });
+  assert.deepEqual(
+    joined.cards.map(item => item.threadId),
+    ['b'],
+  );
+  assert.deepEqual(
+    joined.history[0]!.changes.map(change => change.card.threadId),
+    ['a', 'c'],
+  );
+  const undone = reduceDeck(joined, { type: 'undone', id: 1 });
+  assert.deepEqual(
+    undone.cards.map(item => item.threadId),
+    ['a', 'c', 'b'],
+    'one undo brings back both',
+  );
+  assert.deepEqual(
+    reduceDeck(undone, { type: 'joined', id: 1, changes: [{ card: card('b'), undo: [] }] }),
+    undone,
+    'an undone decision takes no more',
+  );
+});

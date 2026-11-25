@@ -19,6 +19,7 @@ const labelNames = (swipe: Swipe) => swipe.labels.map(label => label.name).join(
 
 /** What a swipe's button and swipe label show: label actions name their labels, such as "Invoices" or "− Invoices". */
 export function actionVerb(swipe: Swipe): string {
+  if (swipe.allFromSender && coversSender(swipe.action)) return `${actionVerb({ ...swipe, allFromSender: false })} all`;
   if (swipe.action === 'addLabels' && swipe.labels.length) return labelNames(swipe);
   if (swipe.action === 'removeLabel' && swipe.labels.length) return `− ${labelNames(swipe)}`;
   if (swipe.action === 'removeAllLabels') return 'Clear labels';

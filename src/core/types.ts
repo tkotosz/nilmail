@@ -64,6 +64,8 @@ export interface Swipe {
   labels: GmailLabel[];
   /** Add labels: also take the conversation out of the inbox. */
   archive: boolean;
+  /** The action also covers the sender's other conversations in the pile, with one undo. */
+  allFromSender: boolean;
 }
 
 /** Which conversations a pile holds; every filter set must match. */
