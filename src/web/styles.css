@@ -1435,6 +1435,10 @@ label.row:has(.row-select:focus-visible)::before {
   color: var(--md-error);
   margin: 0 8px !important;
 }
+/* Clipping the rounded corners lets a flex item shrink to fit, which would cut the email off instead of scrolling it. */
+.read-body > * {
+  flex-shrink: 0;
+}
 .read-messages {
   display: flex;
   flex-direction: column;

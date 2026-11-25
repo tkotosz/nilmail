@@ -265,6 +265,36 @@ test('swiping up opens the conversation, marks it read, and an action there sort
   await page.context().close();
 });
 
+test('a long email scrolls in the read view by touch, on the email itself too', async () => {
+  const threads = sampleThreads(2);
+  threads[0]!.html = Array.from({ length: 60 }, (_, index) => `<p>Paragraph ${index + 1} of a long email.</p>`).join('');
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail, { userAgent: 'Mozilla/5.0 (Linux; Android 16) Mobile' });
+  await waitForCard(page);
+  await page.keyboard.press('ArrowUp');
+  await page.frameLocator('.message-frame').getByText('Paragraph 60').waitFor({ state: 'attached' });
+  const scrolled = () => page.locator('.read-body').evaluate(body => body.scrollTop);
+  assert.ok(
+    await page.locator('.read-body').evaluate(body => body.scrollHeight > body.clientHeight * 2),
+    'the conversation is taller than the screen, not cut off',
+  );
+  const cdp = await page.context().newCDPSession(page);
+  const swipeUp = async (x: number, y: number, distance: number) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    for (let step = 1; step <= 12; step++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - (distance * step) / 12 }] });
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  await swipeUp(195, 600, 300);
+  await page.waitForFunction(() => document.querySelector('.read-body')!.scrollTop > 100);
+  const afterEmail = await scrolled();
+  await swipeUp(195, 300, 200);
+  await page.waitForFunction(top => document.querySelector('.read-body')!.scrollTop > top + 50, afterEmail);
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('cards offer no extra action buttons; reply, from the read view, opens the conversation in Gmail', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   const { page } = await open(gmail);
