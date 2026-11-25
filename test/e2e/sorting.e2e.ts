@@ -107,12 +107,16 @@ const waitForCard = (page: Page) => page.locator('.swipe-card .mail-card').waitF
 const openSwipe = (page: Page, direction: string) =>
   page.getByRole('button', { name: new RegExp(`^${direction} swipe:`) }).click();
 
-/** Waits until the pile picker offers `text`, such as "Unread · 12"; its options are never visible while it is closed. */
+/** Waits until a pile's tab shows `text`, its name and count, such as "Unread · 12". */
 const waitForCount = (page: Page, text: string) =>
-  page.waitForFunction(
-    text => [...document.querySelectorAll('.deck-picker option')].some(option => option.textContent === text),
-    text,
-  );
+  page.getByRole('navigation', { name: 'Piles' }).getByRole('button', { name: text, exact: true }).waitFor();
+
+/** A pile's tab, by the pile's name; its label adds the count, such as "Read · 3". */
+const pileTab = (page: Page, name: string) =>
+  page.getByRole('navigation', { name: 'Piles' }).getByRole('button', { name: new RegExp(`^${name}( · |$)`) });
+
+/** The tabs' labels in order, such as ["Unread · 3", "Read · 3"]. */
+const tabLabels = (page: Page) => page.locator('.pile-tab').evaluateAll(tabs => tabs.map(tab => tab.getAttribute('aria-label')));
 
 /** Drags the top card like a finger would, holding it mid-way for `pause` (to see the swipe label) before letting go. */
 async function drag(page: Page, dx: number, dy: number, pause?: (page: Page) => Promise<void>) {
@@ -396,7 +400,7 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
   await page.getByRole('status').filter({ hasText: 'Skipped' }).waitFor();
   assert.equal(await topSubject(page), 'Message number 2');
 
-  await page.getByLabel('Pile to sort').selectOption('read');
+  await pileTab(page, 'Read').click();
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 3');
   await page.keyboard.press('ArrowLeft');
   await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
@@ -447,7 +451,7 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   assert.deepEqual(gmail.changes[0], { thread: 'thread000', op: 'modify', add: ['Label_receipts', todo.id], remove: ['INBOX'] });
   assert.ok(gmail.labels('thread000').includes('UNREAD'), 'still unread');
 
-  await page.getByLabel('Pile to sort').selectOption({ label: 'Edit piles…' });
+  await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'New pile' }).click();
   await page.getByLabel('Name', { exact: true }).fill('Accounting');
   await page.getByRole('combobox', { name: 'Read or unread' }).selectOption('any');
@@ -467,7 +471,7 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await waitForCount(page, 'Accounting · 1');
-  await page.getByLabel('Pile to sort').selectOption({ label: 'Accounting · 1' });
+  await pileTab(page, 'Accounting').click();
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 1');
   await page
     .locator('.action-bar')
@@ -508,8 +512,7 @@ test('a pile Gmail can only estimate shows its count as a guess; it leaves out a
   const { page, errors } = await open(gmail, { settings: { piles: [anna] } });
   await waitForCard(page);
   await waitForCount(page, 'Anna · ~2');
-  const picker = page.getByLabel('Pile to sort');
-  assert.equal(await picker.getAttribute('title'), "About 2 (Gmail's estimate)");
+  assert.equal(await pileTab(page, 'Anna').getAttribute('title'), "About 2 (Gmail's estimate)");
   assert.equal(await topSubject(page), 'Message number 1');
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 9');
@@ -544,7 +547,7 @@ test('More filters have a page of their own, and a pile built with them loads it
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await waitForCount(page, 'Anna · ~3');
-  await page.getByLabel('Pile to sort').selectOption({ label: 'Anna · ~3' });
+  await pileTab(page, 'Anna').click();
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 1');
   await page.keyboard.press('ArrowDown');
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 5');
@@ -561,11 +564,6 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   const surface = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
   assert.equal(surface, 'rgb(22, 19, 16)', 'the dark surface');
   await page.screenshot({ path: `${screenshots}dark-deck.png` });
-  await page.getByLabel('Pile to sort').click();
-  await page.getByRole('option', { name: 'Edit piles…' }).waitFor();
-  await page.waitForTimeout(400); // the menu fades in
-  await page.screenshot({ path: `${screenshots}dark-picker.png` });
-  await page.keyboard.press('Escape');
   await drag(page, -150, 10, async page => {
     await page.locator('.swipe-intent').waitFor();
     await page.screenshot({ path: `${screenshots}dark-dragging.png` });
@@ -587,11 +585,7 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   await page.screenshot({ path: `${screenshots}dark-settings-list.png` });
   await page.getByRole('button', { name: 'Close' }).click();
   await page.locator('dialog').first().waitFor({ state: 'hidden' });
-  assert.deepEqual(
-    await page.getByLabel('Pile to sort').locator('option').allTextContents(),
-    ['Unread · 3', 'Edit piles…'],
-    'the deleted pile is gone, saved without a Save button',
-  );
+  assert.deepEqual(await tabLabels(page), ['Unread · 3'], 'the deleted pile is gone, saved without a Save button');
   assert.deepEqual(errors, []);
   await page.context().close();
 
@@ -633,11 +627,7 @@ test('piles reorder by dragging their handle, or with the arrow keys on it', asy
 
   await page.getByRole('button', { name: 'Close' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
-  assert.deepEqual(await page.getByLabel('Pile to sort').locator('option').allTextContents(), [
-    'Read · 3',
-    'Unread · 3',
-    'Edit piles…',
-  ]);
+  assert.deepEqual(await tabLabels(page), ['Read · 3', 'Unread · 3']);
   assert.deepEqual(errors, []);
   await page.context().close();
 });
@@ -691,16 +681,11 @@ test('the picker switches to read conversations, with their own swipes, and back
   assert.equal(await topSubject(page), 'Message number 1', 'the app starts on unread');
   await waitForCount(page, 'Unread · 3');
   await waitForCount(page, 'Read · 3');
-  await page.getByLabel('Pile to sort').click();
-  await page.getByRole('option', { name: 'Edit piles…' }).waitFor();
-  await page.waitForTimeout(400); // the menu fades in
-  await page.screenshot({ path: `${screenshots}picker.png` });
-  await page.keyboard.press('Escape');
-  await page.getByLabel('Pile to sort').blur();
+  await page.screenshot({ path: `${screenshots}pile-tabs.png` });
   const markRead = page.locator('.action-bar').getByRole('button', { name: /Mark read/ });
   assert.equal(await markRead.count(), 1, 'down marks unread mail read');
 
-  await page.getByLabel('Pile to sort').selectOption('read');
+  await pileTab(page, 'Read').click();
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 4');
   assert.equal(await markRead.count(), 0, 'down skips read mail');
   await page.locator('.action-bar').getByRole('button', { name: /Skip/ }).waitFor();
@@ -712,14 +697,14 @@ test('the picker switches to read conversations, with their own swipes, and back
   assert.equal(await topSubject(page), 'Message number 5');
   await waitForCount(page, 'Read · 2');
 
-  await page.getByLabel('Pile to sort').selectOption('unread');
+  await pileTab(page, 'Unread').click();
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 1');
   await page.keyboard.press('Control+z');
   await settle(gmail, 2);
   assert.deepEqual(gmail.changes[1], { thread: 'thread003', op: 'modify', add: ['INBOX'], remove: [] });
   await waitForCount(page, 'Read · 3');
 
-  await page.getByLabel('Pile to sort').selectOption('read');
+  await pileTab(page, 'Read').click();
   for (const subject of ['Message number 4', 'Message number 5', 'Message number 6']) {
     await page.waitForFunction(text => document.querySelector('.swipe-card .mail-card-subject')?.textContent === text, subject);
     await page.keyboard.press('ArrowDown');

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
-import { Check, ChevronDown, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
+import { Check, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
 import { actionDone, actionVerb, applySteps, coversSender, isUnread, stepsFor, undoSteps } from '../core/actions.ts';
 import { countFromLabel, pileCount, pileSearch, swipe } from '../core/pile.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
@@ -40,12 +40,9 @@ interface PileCount {
 }
 
 const numbers = new Intl.NumberFormat('en-US');
-/** The picker's text for a pile, such as "Unread · 12", or "Old promos · ~120" when Gmail only estimates. */
+/** A pile's name with its count, such as "Unread · 12", or "Old promos · ~120" when Gmail only estimates. */
 const pileLabel = (pile: Pile, count: PileCount | undefined) =>
   count ? `${pile.name} · ${count.estimate ? '~' : ''}${numbers.format(count.value)}` : pile.name;
-
-/** The picker's choice that opens Settings instead of a pile. */
-const editPiles = 'edit-piles';
 
 const conversations = (count: number) => (count === 1 ? 'one conversation' : `${count} conversations`);
 
@@ -297,6 +294,9 @@ export function Sorter({
           </span>
         </div>
         <div className="top-actions">
+          <button type="button" className="icon-button" onClick={reload} aria-label="Refresh" title="Refresh">
+            <RefreshCw size={21} />
+          </button>
           <InstallButton onAppleHelp={() => setDialog('install')} />
           <button
             type="button"
@@ -309,34 +309,34 @@ export function Sorter({
           </button>
         </div>
       </header>
-      <div className="pile-bar">
-        <label className="deck-picker">
-          <select
-            value={pile.id}
-            onChange={event => {
-              // The arrow keys swipe cards again, instead of changing the pile.
-              event.target.blur();
-              if (event.target.value === editPiles) setDialog('settings');
-              else showPile(event.target.value);
-            }}
-            aria-label="Pile to sort"
-            title={count?.estimate ? `About ${numbers.format(count.value)} (Gmail's estimate)` : undefined}
-          >
-            {settings.piles.map(item => (
-              <option key={item.id} value={item.id}>
-                {pileLabel(item, counts[item.id])}
-              </option>
-            ))}
-            <option value={editPiles} className="picker-edit">
-              Edit piles…
-            </option>
-          </select>
-          <ChevronDown size={15} aria-hidden="true" />
-        </label>
-        <button type="button" className="icon-button small" onClick={reload} aria-label="Refresh" title="Refresh">
-          <RefreshCw size={17} />
-        </button>
-      </div>
+      <nav className="pile-tabs" aria-label="Piles">
+        {settings.piles.map(item => {
+          const itemCount = counts[item.id];
+          const shown = item.id === pile.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="pile-tab"
+              aria-pressed={shown}
+              aria-label={pileLabel(item, itemCount)}
+              title={itemCount?.estimate ? `About ${numbers.format(itemCount.value)} (Gmail's estimate)` : undefined}
+              ref={element => {
+                if (shown) element?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+              }}
+              onClick={() => showPile(item.id)}
+            >
+              {item.name}
+              {itemCount && (
+                <span className="pile-tab-count">
+                  {itemCount.estimate ? '~' : ''}
+                  {numbers.format(itemCount.value)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
       <main className="deck-area">
         {top ? (

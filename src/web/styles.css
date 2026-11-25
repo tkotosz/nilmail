@@ -215,7 +215,6 @@ svg {
 .chip-button,
 .action-button,
 .message.collapsed,
-.deck-picker,
 .google-button,
 .toast-undo {
   position: relative;
@@ -226,7 +225,6 @@ svg {
 .chip-button::before,
 .action-button::before,
 .message.collapsed::before,
-.deck-picker::before,
 .google-button::before,
 .toast-undo::before {
   content: '';
@@ -240,20 +238,13 @@ svg {
   pointer-events: none;
 }
 @media (hover: hover) {
-  :is(
-      .button,
-      .icon-button,
-      .chip-button,
-      .action-button,
-      .message.collapsed,
-      .deck-picker,
-      .google-button,
-      .toast-undo
-    ):hover:not(:disabled)::before {
+  :is(.button, .icon-button, .chip-button, .action-button, .message.collapsed, .google-button, .toast-undo):hover:not(
+      :disabled
+    )::before {
     opacity: 0.08;
   }
 }
-:is(.button, .icon-button, .chip-button, .action-button, .message.collapsed, .deck-picker, .google-button, .toast-undo):is(
+:is(.button, .icon-button, .chip-button, .action-button, .message.collapsed, .google-button, .toast-undo):is(
     :focus-visible,
     :active,
     :has(:focus-visible)
@@ -496,155 +487,81 @@ svg {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The pile picker and Refresh, centered in their own row under the top app bar, so a long pile name and its count fit. */
-.pile-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 0 0 4px 40px;
-}
-/* The pile picker: a tonal dropdown pill, as M3's filled tonal button with a menu. */
-.deck-picker {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 40px;
-  border-radius: var(--shape-full);
-  background: var(--md-surface-container-high);
-  color: var(--md-on-surface);
-}
-.deck-picker select {
-  appearance: none;
-  min-width: 0;
-  max-width: calc(100vw - 120px);
-  min-height: 40px;
-  border: 0;
-  border-radius: inherit;
-  padding: 0 32px 0 16px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  /* As wide as the chosen option, so the arrow sits right after it. */
-  field-sizing: content;
-  cursor: pointer;
-}
-/* Chrome on Android keeps a tapped select "focus-visible" after its menu closes; the state layer shows focus instead. */
-.deck-picker select:focus-visible,
-.row-select:focus-visible {
-  outline: none;
-}
-.deck-picker svg {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-}
 /*
- * Chrome 135+ (Android included) can draw the picker's menu in the page instead of the phone's own dialog, so it can be
- * an M3 menu: surface-container, large corners, 48px rows, the chosen pile in secondary-container. Other browsers keep
- * their own picker. https://developer.chrome.com/docs/modern-web-guidance/guides/forms/branded-select-styling
+ * The piles as M3 secondary tabs under the top app bar: one per pile, with its count, scrolling sideways when there are
+ * many; the shown pile is underlined in the primary color.
  */
-@supports (appearance: base-select) {
-  .deck-picker select,
-  .deck-picker select::picker(select) {
-    appearance: base-select;
+.pile-tabs {
+  display: flex;
+  margin: 0 -16px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--md-outline-variant);
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.pile-tabs::-webkit-scrollbar {
+  display: none;
+}
+.pile-tab {
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 48px;
+  padding: 14px 16px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pile-tab::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--md-primary);
+  transform: scaleX(0);
+  transition: transform 200ms var(--ease-standard);
+}
+.pile-tab[aria-pressed='true'] {
+  color: var(--md-primary);
+}
+.pile-tab[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+.pile-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-standard);
+}
+@media (hover: hover) {
+  .pile-tab:hover::before {
+    opacity: 0.08;
   }
-  .deck-picker select {
-    display: flex;
-    align-items: center;
-  }
-  .deck-picker select::picker-icon {
-    display: none;
-  }
-  .deck-picker select::picker(select) {
-    min-width: max(220px, anchor-size(width));
-    max-width: calc(100vw - 32px);
-    margin-top: 8px;
-    padding: 8px;
-    border: 0;
-    border-radius: var(--shape-l);
-    background: var(--md-surface-container-high);
-    color: var(--md-on-surface);
-    box-shadow: var(--elevation-3);
-    position-area: bottom span-all;
-    position-try-fallbacks: flip-block;
-    opacity: 1;
-    transform: none;
-    transition:
-      opacity 150ms var(--ease-standard),
-      transform 200ms var(--ease-decelerate),
-      display 200ms allow-discrete,
-      overlay 200ms allow-discrete;
-  }
-  @starting-style {
-    .deck-picker select:open::picker(select) {
-      opacity: 0;
-      transform: translateY(-8px) scale(0.98);
-    }
-  }
-  .deck-picker option {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    min-height: 48px;
-    padding: 0 16px;
-    border-radius: var(--shape-m);
-    font-size: 1rem;
-    line-height: 1.5rem;
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-  .deck-picker option::checkmark {
-    order: 1;
-    margin-left: auto;
-    content: '✓';
-    font-weight: 600;
-  }
-  .deck-picker option:hover,
-  .deck-picker option:focus-visible {
-    background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
-    outline: none;
-  }
-  .deck-picker option:checked {
-    background: var(--md-secondary-container);
-    color: var(--md-on-secondary-container);
-    font-weight: 500;
-  }
-  /* The dark secondary container is a heavy brick red; a neutral highlight with a primary check reads calmer. */
-  @media (prefers-color-scheme: dark) {
-    .deck-picker option:checked {
-      background: var(--md-surface-container-highest);
-      color: var(--md-on-surface);
-    }
-    .deck-picker option:checked::checkmark {
-      color: var(--md-primary);
-    }
-  }
-  /* "Edit piles…" is a command, not a pile: set apart, in the primary color. */
-  .deck-picker option.picker-edit {
-    margin-top: 8px;
-    color: var(--md-primary);
-    font-weight: 500;
-  }
-  .deck-picker option.picker-edit::before {
-    content: '';
-    position: absolute;
-    top: -5px;
-    left: 8px;
-    right: 8px;
-    border-top: 1px solid var(--md-outline-variant);
-  }
-  .deck-picker option.picker-edit::checkmark {
-    content: none;
-  }
+}
+.pile-tab:active::before {
+  opacity: 0.1;
+}
+.pile-tab:focus-visible {
+  outline-offset: -4px;
+}
+.pile-tab-count {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 .top-actions {
   margin-left: auto;

@@ -51,7 +51,7 @@ The Worker stores nothing and never sees mail. The allow-list comes from the `AL
 `Sorter.tsx` owns the deck reducer and wires it to Gmail:
 - It shows one pile at a time; choosing another, or changing the shown pile's filters, starts the deck again.
 - It loads batches when the deck runs low.
-- It counts each pile from a label's numbers when they give an exact count, otherwise from Gmail's estimate, which the picker marks as such.
+- It counts each pile from a label's numbers when they give an exact count, otherwise from Gmail's estimate, which the pile's tab marks as such.
 - It applies each decision to the deck at once, and sends the Gmail steps through a queue that runs one decision at a time.
 - When Gmail refuses a change, the card returns to the deck.
 
