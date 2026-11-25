@@ -263,11 +263,30 @@ svg {
   border-radius: 10px;
   color: var(--muted);
 }
-.unread-count {
+.deck-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
   color: var(--muted);
+}
+.deck-picker select {
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 22px 7px 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  /* As wide as the chosen option, so the arrow sits right after it. */
+  field-sizing: content;
+  cursor: pointer;
+}
+.deck-picker svg {
+  position: absolute;
+  right: 4px;
+  pointer-events: none;
 }
 .top-actions {
   margin-left: auto;

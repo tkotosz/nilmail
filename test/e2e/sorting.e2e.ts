@@ -60,6 +60,12 @@ async function open(gmail: FakeGmail | null, { width = 390, height = 844, userAg
 
 const topSubject = (page: Page) => page.locator('.swipe-card .mail-card-subject').textContent();
 const waitForCard = (page: Page) => page.locator('.swipe-card .mail-card').waitFor();
+/** Waits until the deck picker offers `text`, such as "12 unread"; its options are never visible while it is closed. */
+const waitForCount = (page: Page, text: string) =>
+  page.waitForFunction(
+    text => [...document.querySelectorAll('.deck-picker option')].some(option => option.textContent === text),
+    text,
+  );
 
 /** Drags the top card like a finger would, holding it mid-way for `pause` (to see the swipe label) before letting go. */
 async function drag(page: Page, dx: number, dy: number, pause?: (page: Page) => Promise<void>) {
@@ -108,7 +114,7 @@ test('swiping right archives the newest unread thread, and undo puts it back', a
   const { page, errors } = await open(gmail);
   await waitForCard(page);
   assert.equal(await topSubject(page), 'Message number 1');
-  await page.getByText('12 unread').waitFor();
+  await waitForCount(page, '12 unread');
   assert.equal(await page.locator('.app-version').textContent(), 'v9.9.9', 'the build puts its version under the logo');
   await page.screenshot({ path: `${screenshots}deck.png` });
 
@@ -126,13 +132,13 @@ test('swiping right archives the newest unread thread, and undo puts it back', a
   await settle(gmail, 1);
   assert.deepEqual(gmail.changes, [{ thread: 'thread000', op: 'modify', add: [], remove: ['INBOX', 'UNREAD'] }]);
   assert.equal(await topSubject(page), 'Message number 2');
-  await page.getByText('11 unread').waitFor();
+  await waitForCount(page, '11 unread');
 
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await settle(gmail, 2);
   assert.deepEqual(gmail.changes[1], { thread: 'thread000', op: 'modify', add: ['INBOX', 'UNREAD'], remove: [] });
   assert.equal(await topSubject(page), 'Message number 1');
-  await page.getByText('12 unread').waitFor();
+  await waitForCount(page, '12 unread');
   assert.deepEqual(errors, []);
   await page.context().close();
 });
@@ -276,7 +282,7 @@ test('All from sender applies one swipe to every unread conversation from the se
   assert.deepEqual(gmail.changes.map(change => change.thread).toSorted(), ['thread000', 'thread004', 'thread008']);
   assert.equal(await topSubject(page), 'Message number 2');
   assert.equal(await toggle.getAttribute('aria-pressed'), 'false', 'the next card starts with the switch off');
-  await page.getByText('9 unread').waitFor();
+  await waitForCount(page, '9 unread');
 
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await settle(gmail, 6);
@@ -289,7 +295,7 @@ test('All from sender applies one swipe to every unread conversation from the se
     ],
   );
   assert.equal(await topSubject(page), 'Message number 1');
-  await page.getByText('12 unread').waitFor();
+  await waitForCount(page, '12 unread');
 
   await toggle.click();
   await page.getByRole('button', { name: 'All 3 from sender' }).waitFor();
@@ -396,7 +402,7 @@ test('Refresh starts again from the newest thread, brings back skipped ones, and
   gmail.threads.set('thread-new', { ...arrived!, id: 'thread-new', subject: 'Just arrived' });
   await page.getByRole('button', { name: 'Refresh' }).click();
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Just arrived');
-  await page.getByText('8 unread').waitFor();
+  await waitForCount(page, '8 unread');
 
   await page.keyboard.press('Control+z');
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 2');
@@ -404,7 +410,47 @@ test('Refresh starts again from the newest thread, brings back skipped ones, and
   await settle(gmail, 2);
   assert.deepEqual(gmail.changes[1], { thread: 'thread000', op: 'modify', add: ['INBOX', 'UNREAD'], remove: [] });
   assert.equal(await topSubject(page), 'Message number 1');
-  await page.getByText('9 unread').waitFor();
+  await waitForCount(page, '9 unread');
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
+test('the picker switches to read conversations, which offer no Mark read, and back; undo still works', async () => {
+  const threads = sampleThreads(6).map((thread, index) =>
+    index < 3 ? thread : { ...thread, labelIds: thread.labelIds.filter(label => label !== 'UNREAD') },
+  );
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  assert.equal(await topSubject(page), 'Message number 1', 'the app starts on unread');
+  await waitForCount(page, '3 unread');
+  await waitForCount(page, '3 read');
+  assert.equal(await page.getByRole('button', { name: 'Mark read' }).count(), 1);
+
+  await page.getByLabel('Conversations to sort').selectOption('read');
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 4');
+  assert.equal(await page.getByRole('button', { name: 'Mark read' }).count(), 0, 'a read card has nothing to mark read');
+  await page.screenshot({ path: `${screenshots}read-deck.png` });
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
+  await settle(gmail, 1);
+  assert.deepEqual(gmail.changes, [{ thread: 'thread003', op: 'modify', add: [], remove: ['INBOX'] }]);
+  assert.equal(await topSubject(page), 'Message number 5');
+  await waitForCount(page, '2 read');
+
+  await page.getByLabel('Conversations to sort').selectOption('unread');
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 1');
+  await page.keyboard.press('Control+z');
+  await settle(gmail, 2);
+  assert.deepEqual(gmail.changes[1], { thread: 'thread003', op: 'modify', add: ['INBOX'], remove: [] });
+  await waitForCount(page, '3 read');
+
+  await page.getByLabel('Conversations to sort').selectOption('read');
+  for (const subject of ['Message number 4', 'Message number 5', 'Message number 6']) {
+    await page.waitForFunction(text => document.querySelector('.swipe-card .mail-card-subject')?.textContent === text, subject);
+    await page.keyboard.press('ArrowDown');
+  }
+  await page.getByText('No read conversations left in the inbox.').waitFor();
   assert.deepEqual(errors, []);
   await page.context().close();
 });

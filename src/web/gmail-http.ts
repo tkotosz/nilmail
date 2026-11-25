@@ -19,9 +19,14 @@ export class GmailError extends Error {
   }
 }
 
+export interface InboxCounts {
+  unread: number;
+  read: number;
+}
+
 export interface WebGmail extends Gmail {
-  /** Unread conversations in the inbox. */
-  unreadInInbox(): Promise<number>;
+  /** How many conversations in the inbox are unread and read, from the inbox label alone, without listing any. */
+  inboxCounts(): Promise<InboxCounts>;
   emailAddress(): Promise<string>;
   /** The labels the user made, by name. */
   userLabels(): Promise<GmailLabel[]>;
@@ -80,8 +85,11 @@ export function httpGmail(session: Session): WebGmail {
     async untrashThread(id) {
       await call(`/threads/${encodeURIComponent(id)}/untrash`, { method: 'POST' });
     },
-    async unreadInInbox() {
-      return (await call<{ threadsUnread?: number }>('/labels/INBOX')).threadsUnread ?? 0;
+    async inboxCounts() {
+      const { threadsTotal = 0, threadsUnread = 0 } = await call<{ threadsTotal?: number; threadsUnread?: number }>(
+        '/labels/INBOX',
+      );
+      return { unread: threadsUnread, read: Math.max(0, threadsTotal - threadsUnread) };
     },
     async emailAddress() {
       return (await call<{ emailAddress: string }>('/profile')).emailAddress;

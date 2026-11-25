@@ -190,6 +190,28 @@ test('loading starts from the first page and pages past threads already seen', a
   assert.deepEqual(none, { cards: [], more: false });
 });
 
+test('a huge inbox loads one batch at a time and never lists more than ten pages for it', async () => {
+  const ids = Array.from({ length: 5000 }, (_, index) => `t${index}`);
+  const gmail = fakeGmail(Array.from({ length: 100 }, (_, page) => ids.slice(page * 50, page * 50 + 50)));
+  let lists = 0;
+  const list = gmail.listThreads;
+  gmail.listThreads = (query, pageToken) => (lists++, list(query, pageToken));
+
+  const first = await loadCards(gmail, 'in:inbox is:read', new Set());
+  assert.equal(first.cards.length, 15);
+  assert.equal(first.more, true);
+  assert.equal(gmail.requested.length, 15, 'only one batch of threads is fetched');
+  assert.equal(lists, 1);
+
+  // Skipped read threads still match the search, so a later batch has to page past them, but only so far.
+  lists = 0;
+  gmail.requested.length = 0;
+  const deep = await loadCards(gmail, 'in:inbox is:read', new Set(ids.slice(0, 2000)));
+  assert.equal(lists, 10);
+  assert.deepEqual(deep, { cards: [], more: false });
+  assert.equal(gmail.requested.length, 0);
+});
+
 test('the sender search narrows the deck search to one address', () => {
   assert.equal(senderQuery('in:inbox is:unread', 'ann@example.com'), '(in:inbox is:unread) from:"ann@example.com"');
   assert.equal(senderQuery('label:a OR label:b', 'odd"@example.com'), '(label:a OR label:b) from:"odd@example.com"');

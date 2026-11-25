@@ -2,6 +2,9 @@ import { directions, gestureActionIds, type ActionId, type Direction, type Gmail
 
 export const defaultQuery = 'in:inbox is:unread';
 
+/** The search of the Read deck: conversations in the inbox that have been read. */
+export const readQuery = 'in:inbox is:read';
+
 export const defaultSettings: Settings = {
   gestures: { right: 'archive', left: 'delete', up: 'read', down: 'skip' },
   labels: {},

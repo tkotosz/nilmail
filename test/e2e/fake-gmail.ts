@@ -66,11 +66,15 @@ export class FakeGmail {
     return this.threads.get(id)!.labelIds;
   }
 
-  /** Unread inbox threads; of these, a search with `from:"address"` matches only that sender's. */
+  /**
+   * Unread inbox threads, or read ones for a search with `is:read`; of these, a search with `from:"address"` matches only
+   * that sender's.
+   */
   private matching(query = ''): FakeThread[] {
     const from = /from:"([^"]+)"/.exec(query)?.[1];
+    const read = query.includes('is:read');
     return [...this.threads.values()]
-      .filter(thread => thread.labelIds.includes('INBOX') && thread.labelIds.includes('UNREAD'))
+      .filter(thread => thread.labelIds.includes('INBOX') && thread.labelIds.includes('UNREAD') !== read)
       .filter(thread => !from || thread.from.includes(`<${from}>`))
       .sort((a, b) => b.date - a.date);
   }
@@ -131,7 +135,10 @@ export class FakeGmail {
       this.labelList.push(label);
       return reply(label);
     }
-    if (path === '/labels/INBOX') return reply({ id: 'INBOX', threadsUnread: this.matching().length });
+    if (path === '/labels/INBOX') {
+      const inbox = [...this.threads.values()].filter(thread => thread.labelIds.includes('INBOX'));
+      return reply({ id: 'INBOX', threadsTotal: inbox.length, threadsUnread: this.matching().length });
+    }
     if (path === '/threads') {
       const all = this.matching(url.searchParams.get('q') ?? '');
       const size = Number(url.searchParams.get('maxResults') ?? 100);

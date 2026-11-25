@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
-import { Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
-import { actionDone, actionVerb, applySteps, coversSender, stepsFor, undoSteps } from '../core/actions.ts';
+import { ChevronDown, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
+import { actionDone, actionVerb, applySteps, coversSender, isUnread, stepsFor, undoSteps } from '../core/actions.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyChanges, applyToGmail } from '../core/gmail.ts';
-import { actionsWithoutGesture } from '../core/settings.ts';
+import { actionsWithoutGesture, readQuery } from '../core/settings.ts';
 import { directions, type ActionId, type Direction, type GmailLabel, type MailCard, type Settings } from '../core/types.ts';
 import { actionUi, directionArrows, keyDirections } from './action-ui.ts';
 import { InstallButton } from './components/InstallButton.tsx';
@@ -13,7 +13,7 @@ import { ReadView } from './components/ReadView.tsx';
 import { SettingsForm } from './components/SettingsForm.tsx';
 import { SwipeCard, type SwipeAction, type SwipeCardHandle } from './components/SwipeCard.tsx';
 import { useSwipeKeys } from './components/useSwipeKeys.ts';
-import { gmailLink, problemText, type WebGmail } from './gmail-http.ts';
+import { gmailLink, problemText, type InboxCounts, type WebGmail } from './gmail-http.ts';
 import { SessionError } from './session.ts';
 import { sendUnsubscribe, unsubscribeDone } from './unsubscribe.ts';
 import { loadSettings, saveSettings } from './storage.ts';
@@ -31,6 +31,13 @@ const toastTime = { info: 5000, error: 8000 };
 
 /** "All from this sender" for the card `threadId`: looking up the sender's other conversations, or holding them. */
 type SenderChoice = { threadId: string; others: null } | { threadId: string; others: MailCard[]; more: boolean };
+
+/** Which conversations the deck holds: unread ones (the search from Settings) or read ones in the inbox. */
+type DeckKind = 'unread' | 'read';
+
+const numbers = new Intl.NumberFormat('en-US');
+const countLabel = (count: number | undefined, kind: DeckKind) =>
+  count === undefined ? (kind === 'unread' ? 'Unread' : 'Read') : `${numbers.format(count)} ${kind}`;
 
 const conversations = (count: number) => (count === 1 ? 'one conversation' : `${count} conversations`);
 
@@ -50,7 +57,9 @@ export function Sorter({
   const [reading, setReading] = useState<MailCard | null>(null);
   const [dialog, setDialog] = useState<'settings' | 'install' | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
-  const [unread, setUnread] = useState<number | null>(null);
+  const [counts, setCounts] = useState<InboxCounts | null>(null);
+  /** Each visit starts on Unread: the choice is not saved. */
+  const [deckKind, setDeckKind] = useState<DeckKind>('unread');
   const [sender, setSender] = useState<SenderChoice | null>(null);
   const [loadProblem, setLoadProblem] = useState<string | null>(null);
   /** Changes whenever the top card must start fresh, such as after a swipe that opened the read view. */
@@ -62,6 +71,7 @@ export function Sorter({
   /** Changes on every reload, so a batch that was loading for the previous search is dropped. */
   const generation = useRef(0);
 
+  const query = deckKind === 'read' ? readQuery : settings.query;
   const top = deck.cards[0];
   const next = deck.cards[1];
   /** The choice only holds for the card it was made on. */
@@ -78,8 +88,8 @@ export function Sorter({
     [onSessionLost, showToast],
   );
 
-  const refreshUnread = useCallback(() => {
-    gmail.unreadInInbox().then(setUnread, () => undefined);
+  const refreshCounts = useCallback(() => {
+    gmail.inboxCounts().then(setCounts, () => undefined);
   }, [gmail]);
 
   const enqueue = <Result,>(task: () => Promise<Result>) => {
@@ -88,13 +98,13 @@ export function Sorter({
     return run;
   };
 
-  useEffect(refreshUnread, [refreshUnread]);
+  useEffect(refreshCounts, [refreshCounts]);
 
   useEffect(() => {
     if (!needsCards(deck) || loadProblem) return;
     const current = generation.current;
     dispatch({ type: 'loading' });
-    loadCards(gmail, settings.query, deck.seen).then(
+    loadCards(gmail, query, deck.seen).then(
       ({ cards, more }) => current === generation.current && dispatch({ type: 'loaded', cards, more }),
       error => {
         if (current !== generation.current) return;
@@ -103,7 +113,7 @@ export function Sorter({
         else setLoadProblem(problemText(error));
       },
     );
-  }, [deck, gmail, settings.query, loadProblem, onSessionLost]);
+  }, [deck, gmail, query, loadProblem, onSessionLost]);
 
   useEffect(() => {
     if (!toast) return;
@@ -116,7 +126,12 @@ export function Sorter({
     dispatch({ type: 'reset' });
     setSender(null);
     setLoadProblem(null);
-    refreshUnread();
+    refreshCounts();
+  }
+
+  function switchDeck(kind: DeckKind) {
+    setDeckKind(kind);
+    reload();
   }
 
   function openReadView(card: MailCard) {
@@ -127,7 +142,7 @@ export function Sorter({
     const steps = stepsFor('read', card, settings);
     if (!steps.length) return;
     dispatch({ type: 'cardChanged', card: applySteps(card, steps) });
-    enqueue(() => applyToGmail(gmail, card.threadId, steps)).then(refreshUnread, error => {
+    enqueue(() => applyToGmail(gmail, card.threadId, steps)).then(refreshCounts, error => {
       dispatch({ type: 'cardChanged', card });
       report(error);
     });
@@ -136,7 +151,7 @@ export function Sorter({
   function toggleAllFromSender(card: MailCard) {
     if (allFromSender) return setSender(null);
     setSender({ threadId: card.threadId, others: null });
-    findFromSender(gmail, settings.query, card).then(
+    findFromSender(gmail, query, card).then(
       ({ others, more }) =>
         setSender(current => (current?.threadId === card.threadId && !current.others ? { ...current, others, more } : current)),
       error => {
@@ -147,7 +162,9 @@ export function Sorter({
   }
 
   /** `label` is the label of a label swipe. */
-  function decide(card: MailCard, action: ActionId, label?: GmailLabel) {
+  function decide(card: MailCard, chosen: ActionId, label?: GmailLabel) {
+    // Marking a read conversation read would change nothing: the card just moves on.
+    const action = chosen === 'markRead' && !isUnread(card) ? 'skip' : chosen;
     if (action === 'read') return openReadView(card);
     if (action === 'reply') window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
     if (action === 'unsubscribe' && card.unsubscribe) {
@@ -169,7 +186,7 @@ export function Sorter({
     if (!planned.some(change => change.steps.length)) return;
     const changes = planned.map(({ card, steps }) => ({ threadId: card.threadId, steps }));
     enqueue(() => applyChanges(gmail, changes)).then(({ failed, error }) => {
-      refreshUnread();
+      refreshCounts();
       if (!failed.length) return;
       dispatch({ type: 'decisionFailed', id, threadIds: failed });
       report(error, failed.length < changes.length ? `${conversations(failed.length)} could not be changed. ` : '');
@@ -183,7 +200,7 @@ export function Sorter({
     const changes = decision.changes.map(({ card, undo }) => ({ threadId: card.threadId, steps: undo }));
     if (!changes.some(change => change.steps.length)) return;
     enqueue(() => applyChanges(gmail, changes)).then(({ failed, error }) => {
-      refreshUnread();
+      refreshCounts();
       if (!failed.length) return;
       const stuck = decision.changes.filter(change => failed.includes(change.card.threadId));
       dispatch({ type: 'undoFailed', decision: { ...decision, changes: stuck } });
@@ -217,7 +234,11 @@ export function Sorter({
         const action = settings.gestures[direction];
         return { direction, label: verb(action, settings.labels[direction]), tone: actionUi[action].tone };
       });
-  const extraActions: ActionId[] = [...actionsWithoutGesture(settings), ...(top?.unsubscribe ? ['unsubscribe' as const] : [])];
+  const extraActions: ActionId[] = [
+    // A read conversation has nothing to mark read.
+    ...actionsWithoutGesture(settings).filter(action => action !== 'markRead' || (top && isUnread(top))),
+    ...(top?.unsubscribe ? ['unsubscribe' as const] : []),
+  ];
   const lastDecision = deck.history.at(-1);
   const waiting = deck.loading || (deck.more && !loadProblem);
 
@@ -234,9 +255,17 @@ export function Sorter({
           </span>
         </div>
         <div className="unread-status">
-          <span className="unread-count" aria-live="polite">
-            {unread === null ? '' : `${unread} unread`}
-          </span>
+          <label className="deck-picker">
+            <select
+              value={deckKind}
+              onChange={event => switchDeck(event.target.value as DeckKind)}
+              aria-label="Conversations to sort"
+            >
+              <option value="unread">{countLabel(counts?.unread, 'unread')}</option>
+              <option value="read">{countLabel(counts?.read, 'read')}</option>
+            </select>
+            <ChevronDown size={15} aria-hidden="true" />
+          </label>
           <button type="button" className="icon-button small" onClick={reload} aria-label="Refresh" title="Refresh">
             <RefreshCw size={17} />
           </button>
@@ -320,9 +349,12 @@ export function Sorter({
           <div className="deck-message inbox-zero">
             <Inbox size={44} aria-hidden="true" />
             <h2>Nothing left to sort</h2>
-            {unread ? (
+            {deckKind === 'read' ? (
+              <p>No read conversations left in the inbox.</p>
+            ) : counts?.unread ? (
               <p>
-                {unread === 1 ? 'One skipped conversation is' : `${unread} skipped conversations are`} still unread in the inbox.
+                {counts.unread === 1 ? 'One skipped conversation is' : `${counts.unread} skipped conversations are`} still unread
+                in the inbox.
               </p>
             ) : (
               <p>Inbox zero. Well done.</p>
