@@ -1,6 +1,11 @@
+/*
+ * Material Design 3. Colors are the roles of a scheme generated with Google's material-color-utilities (spec 2025) from
+ * the brand orange #ec4b2f: accents from the Fidelity variant, neutrals at a warm hue (70°) with little chroma. Action
+ * colors are M3 custom colors harmonized toward the same seed; their containers use chroma 28, so they stay calm.
+ */
 :root {
+  color-scheme: light dark;
   --column: 560px;
-  color-scheme: light;
   font-family:
     system-ui,
     -apple-system,
@@ -9,24 +14,135 @@
     Roboto,
     sans-serif;
   font-synthesis: none;
-  --page: #f5f3ee;
-  --ink: #1f2430;
-  --muted: #5f6573;
-  --line: #e3e0d8;
-  --paper: #fff;
-  --brand: #ec4b2f;
-  --brand-dark: #c93a21;
-  --shadow: 0 18px 40px #2a1d1414;
-  --green: #1d7f54;
-  --red: #cf3d35;
-  --teal: #11807f;
-  --blue: #2c66d4;
-  --violet: #7445c8;
-  --gray: #646a77;
-  --orange: #b4540d;
-  --plum: #a3326f;
-  color: var(--ink);
-  background: var(--page);
+  -webkit-font-smoothing: antialiased;
+
+  --md-primary: #b32109;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #d63b21;
+  --md-on-primary-container: #fffbff;
+  --md-secondary: #9c4231;
+  --md-on-secondary: #ffffff;
+  /* Tone 90 of the secondary palette, calmer for selections than Fidelity's own container (#ff8f79). */
+  --md-secondary-container: #ffdad3;
+  --md-on-secondary-container: #762618;
+  --md-error: #ba1a1a;
+  --md-error-container: #ffdad6;
+  --md-on-error-container: #93000a;
+  --md-surface: #fff8f4;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #fbf2ec;
+  --md-surface-container: #f5ece6;
+  --md-surface-container-high: #efe7e1;
+  --md-surface-container-highest: #e9e1db;
+  --md-on-surface: #1e1b18;
+  --md-on-surface-variant: #4e453d;
+  --md-outline: #80756c;
+  --md-outline-variant: #d1c4b9;
+  --md-inverse-surface: #34302c;
+  --md-inverse-on-surface: #f8efe9;
+  --md-inverse-primary: #ffb4a5;
+  --md-scrim: #000000;
+
+  --green: #2d6b30;
+  --green-container: #c6edbf;
+  --on-green-container: #022105;
+  --red: #b32a1d;
+  --red-container: #ffdad4;
+  --on-red-container: #360f0a;
+  --blue: #4c4fc6;
+  --blue-container: #e1e0ff;
+  --on-blue-container: #16173d;
+  --teal: #006b5b;
+  --teal-container: #b4eedf;
+  --on-teal-container: #00201a;
+  --violet: #8739b2;
+  --violet-container: #f6d9ff;
+  --on-violet-container: #281235;
+  --gray: #5d5e67;
+  --gray-container: #e2e1ec;
+  --on-gray-container: #1a1b23;
+  --plum: #a83251;
+  --plum-container: #ffd9de;
+  --on-plum-container: #350e17;
+  --orange: #a13f16;
+  --orange-container: #ffdbcf;
+  --on-orange-container: #351003;
+
+  /* Elevation: M3 levels 1 and 3, as key and ambient shadows. */
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --elevation-3: 0 4px 8px 3px rgb(0 0 0 / 0.15), 0 1px 3px rgb(0 0 0 / 0.3);
+
+  /* Shape: the M3 corner scale. */
+  --shape-xs: 4px;
+  --shape-s: 8px;
+  --shape-m: 12px;
+  --shape-l: 16px;
+  --shape-xl: 28px;
+  --shape-full: 999px;
+
+  /* Motion: M3 easing. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+  color: var(--md-on-surface);
+  background: var(--md-surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --md-primary: #ffb4a5;
+    --md-on-primary: #650a00;
+    --md-primary-container: #fd573a;
+    --md-on-primary-container: #400400;
+    --md-secondary: #ffb4a5;
+    --md-on-secondary: #5f1509;
+    --md-secondary-container: #843021;
+    --md-on-secondary-container: #ffdad3;
+    --md-error: #ffb4ab;
+    --md-error-container: #93000a;
+    --md-on-error-container: #ffdad6;
+    --md-surface: #161310;
+    --md-surface-container-lowest: #110e0b;
+    --md-surface-container-low: #1e1b18;
+    --md-surface-container: #231f1b;
+    --md-surface-container-high: #2d2926;
+    --md-surface-container-highest: #383430;
+    --md-on-surface: #e9e1db;
+    --md-on-surface-variant: #d1c4b9;
+    --md-outline: #9a8f85;
+    --md-outline-variant: #4e453d;
+    --md-inverse-surface: #e9e1db;
+    --md-inverse-on-surface: #34302c;
+    --md-inverse-primary: #b6240b;
+
+    --green: #94d78f;
+    --green-container: #2e4e2d;
+    --on-green-container: #c6edbf;
+    --red: #ffb4a8;
+    --red-container: #6b3931;
+    --on-red-container: #ffdad4;
+    --blue: #c0c1ff;
+    --blue-container: #42436b;
+    --on-blue-container: #e1e0ff;
+    --teal: #78d7c2;
+    --teal-container: #135045;
+    --on-teal-container: #b4eedf;
+    --violet: #e7b4ff;
+    --violet-container: #563d63;
+    --on-violet-container: #f6d9ff;
+    --gray: #c6c5d0;
+    --gray-container: #45464f;
+    --on-gray-container: #e2e1ec;
+    --plum: #ffb2be;
+    --plum-container: #693841;
+    --on-plum-container: #ffd9de;
+    --orange: #ffb59b;
+    --orange-container: #6a3a28;
+    --on-orange-container: #ffdbcf;
+
+    --elevation-1: 0 1px 2px rgb(0 0 0 / 0.5), 0 1px 3px 1px rgb(0 0 0 / 0.3);
+    --elevation-3: 0 4px 8px 3px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.5);
+  }
 }
 
 *,
@@ -37,6 +153,9 @@
 body {
   margin: 0;
   min-width: 280px;
+  /* M3 body-medium. */
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 /* Clip rather than hide overflow on the page, so a card thrown off screen
    cannot scroll it, while the browser keeps pull-to-refresh. */
@@ -58,20 +177,24 @@ select {
 }
 button:disabled {
   cursor: default;
-  opacity: 0.4;
+  opacity: 0.38;
 }
 button,
 a,
 select,
-input {
+input,
+summary {
   -webkit-tap-highlight-color: transparent;
 }
 button,
 a {
   touch-action: manipulation;
 }
+a {
+  color: var(--md-primary);
+}
 :focus-visible {
-  outline: 3px solid #f08a74;
+  outline: 2px solid var(--md-primary);
   outline-offset: 2px;
 }
 h1,
@@ -83,32 +206,114 @@ svg {
   flex: none;
 }
 
-/* Buttons */
+/*
+ * State layers: hover, focus and press lay the content color over a control at 8%, 10% and 10%. A control opts in with
+ * `position: relative` and the class `state`, or through the shared selector below.
+ */
+.button,
+.icon-button,
+.chip-button,
+.action-button,
+.pile-row,
+.button-group button,
+.message.collapsed,
+.deck-picker,
+.google-button,
+.toast-undo,
+.label-chips button,
+.more-filters summary {
+  position: relative;
+  isolation: isolate;
+}
+.button::before,
+.icon-button::before,
+.chip-button::before,
+.action-button::before,
+.pile-row::before,
+.button-group button::before,
+.message.collapsed::before,
+.deck-picker::before,
+.google-button::before,
+.toast-undo::before,
+.label-chips button::before,
+.more-filters summary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-standard);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  :is(
+      .button,
+      .icon-button,
+      .chip-button,
+      .action-button,
+      .pile-row,
+      .button-group button,
+      .message.collapsed,
+      .deck-picker,
+      .google-button,
+      .toast-undo,
+      .label-chips button,
+      .more-filters summary
+    ):hover:not(:disabled)::before {
+    opacity: 0.08;
+  }
+}
+:is(
+    .button,
+    .icon-button,
+    .chip-button,
+    .action-button,
+    .pile-row,
+    .button-group button,
+    .message.collapsed,
+    .deck-picker,
+    .google-button,
+    .toast-undo,
+    .label-chips button,
+    .more-filters summary
+  ):is(:focus-visible, :active, :has(:focus-visible)):not(:disabled)::before {
+  opacity: 0.1;
+}
+
+/* Buttons: M3 common buttons, fully rounded, label-large text. */
 .button {
-  min-height: 48px;
-  border-radius: 13px;
-  padding: 11px 20px;
-  font-weight: 700;
-  border: 1px solid transparent;
+  min-height: 40px;
+  border-radius: var(--shape-full);
+  padding: 10px 24px;
+  border: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.006em;
   text-decoration: none;
+  white-space: nowrap;
 }
 .button.primary {
-  background: var(--ink);
-  color: #fff;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
 }
-.button.primary:hover {
-  background: #343b4b;
+.button.primary:hover:not(:disabled) {
+  box-shadow: var(--elevation-1);
 }
 .button.secondary {
-  background: var(--paper);
-  border-color: var(--line);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
-.button.secondary:hover {
-  background: #faf8f4;
+.button.text {
+  background: transparent;
+  color: var(--md-primary);
+  padding: 10px 12px;
 }
 .icon-button,
 .quiet-button,
@@ -116,59 +321,80 @@ svg {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   background: transparent;
   border: 0;
 }
 .icon-button {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--shape-full);
+  color: var(--md-on-surface-variant);
 }
-.icon-button:hover:not(:disabled),
-.quiet-button:hover {
-  background: #ebe7df;
+.icon-button.small {
+  width: 40px;
+  height: 40px;
 }
+/* M3 outlined button. */
 .quiet-button {
   min-height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  padding: 0 12px;
-  font-size: 0.88rem;
-  font-weight: 650;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-full);
+  padding: 0 16px;
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
+}
+.quiet-button:hover {
+  background: color-mix(in srgb, var(--md-on-surface-variant) 8%, transparent);
 }
 .text-button {
   padding: 2px;
-  font-weight: 650;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--md-primary);
+  font-weight: 500;
 }
 
-/* Tones: one color per action, used by buttons and swipe labels alike. */
+/* Tones: each action's M3 custom color, with its container for filled surfaces. */
 .tone-green {
   --tone: var(--green);
+  --tone-container: var(--green-container);
+  --on-tone-container: var(--on-green-container);
 }
 .tone-red {
   --tone: var(--red);
+  --tone-container: var(--red-container);
+  --on-tone-container: var(--on-red-container);
 }
 .tone-teal {
   --tone: var(--teal);
+  --tone-container: var(--teal-container);
+  --on-tone-container: var(--on-teal-container);
 }
 .tone-blue {
   --tone: var(--blue);
+  --tone-container: var(--blue-container);
+  --on-tone-container: var(--on-blue-container);
 }
 .tone-violet {
   --tone: var(--violet);
+  --tone-container: var(--violet-container);
+  --on-tone-container: var(--on-violet-container);
 }
 .tone-gray {
   --tone: var(--gray);
+  --tone-container: var(--gray-container);
+  --on-tone-container: var(--on-gray-container);
 }
 .tone-orange {
   --tone: var(--orange);
+  --tone-container: var(--orange-container);
+  --on-tone-container: var(--on-orange-container);
 }
 .tone-plum {
   --tone: var(--plum);
+  --tone-container: var(--plum-container);
+  --on-tone-container: var(--on-plum-container);
 }
 
 /* Welcome and sign-in */
@@ -178,36 +404,70 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 16px;
   padding: 24px;
   text-align: center;
 }
 .welcome h1 {
-  font-size: 2.2rem;
-  letter-spacing: -0.03em;
+  /* M3 display-small. */
+  font-size: 2.25rem;
+  line-height: 2.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 .welcome img {
-  border-radius: 20px;
-  box-shadow: var(--shadow);
+  border-radius: var(--shape-xl);
+  box-shadow: var(--elevation-3);
 }
 .tagline {
-  color: var(--muted);
-  font-size: 1.05rem;
-  margin-bottom: 10px;
+  /* M3 body-large. */
+  color: var(--md-on-surface-variant);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  margin-bottom: 8px;
 }
 .welcome-notice {
-  max-width: 34ch;
-  background: #fff4e8;
-  border: 1px solid #f3d8bb;
-  color: #7a4a17;
-  border-radius: 12px;
-  padding: 10px 14px;
+  max-width: 36ch;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  border-radius: var(--shape-m);
+  padding: 12px 16px;
 }
 .welcome-small {
-  max-width: 34ch;
-  color: var(--muted);
-  font-size: 0.85rem;
-  margin-top: 18px;
+  max-width: 36ch;
+  color: var(--md-on-surface-variant);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  margin-top: 16px;
+}
+/*
+ * Google's "Sign in with Google" button, as its branding guidelines set it: a pill with a white fill, a 1px #747775
+ * outline and #1F1F1F label (#131314, #8E918F and #E3E3E3 in dark), Google Sans Medium 14/20, the standard G, 12px
+ * before the logo, 10px after it and 12px after the label.
+ * https://developers.google.com/identity/branding-guidelines
+ */
+.google-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #747775;
+  border-radius: var(--shape-full);
+  background: #ffffff;
+  color: #1f1f1f;
+  font-family: 'Google Sans', Roboto, system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+@media (prefers-color-scheme: dark) {
+  .google-button {
+    border-color: #8e918f;
+    background: #131314;
+    color: #e3e3e3;
+  }
 }
 
 /* The sorting screen */
@@ -219,24 +479,27 @@ svg {
   width: 100%;
   max-width: var(--column);
   margin: 0 auto;
-  padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
 }
+/* M3 small top app bar. */
 .top-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 58px;
+  gap: 8px;
+  min-height: 64px;
+  margin: 0 -4px;
 }
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 800;
-  font-size: 1.15rem;
-  letter-spacing: -0.02em;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  letter-spacing: -0.01em;
 }
 .brand img {
-  border-radius: 8px;
+  border-radius: var(--shape-s);
 }
 .brand-name {
   display: flex;
@@ -246,60 +509,69 @@ svg {
 .app-version {
   max-width: 9rem;
   overflow: hidden;
-  color: var(--muted);
-  font-size: 0.7rem;
+  color: var(--md-on-surface-variant);
+  font-size: 0.6875rem;
+  line-height: 1rem;
   font-weight: 500;
-  letter-spacing: 0;
+  letter-spacing: 0.03em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .unread-status {
   display: flex;
   align-items: center;
+  gap: 2px;
+  min-width: 0;
 }
-.icon-button.small {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  color: var(--muted);
-}
+/* The pile picker: a tonal dropdown pill, as M3's filled tonal button with a menu. */
 .deck-picker {
-  position: relative;
   display: flex;
   align-items: center;
-  color: var(--muted);
+  min-width: 0;
+  min-height: 40px;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
 }
 .deck-picker select {
   appearance: none;
+  min-width: 0;
+  max-width: 11rem;
+  min-height: 40px;
   border: 0;
-  border-radius: 8px;
-  padding: 7px 22px 7px 6px;
+  border-radius: inherit;
+  padding: 0 32px 0 16px;
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
   /* As wide as the chosen option, so the arrow sits right after it. */
   field-sizing: content;
   cursor: pointer;
 }
+.deck-picker select:focus-visible {
+  outline-offset: 0;
+}
 .deck-picker svg {
   position: absolute;
-  right: 4px;
+  right: 12px;
   pointer-events: none;
 }
 .top-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
 }
 .deck-area {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 6px 0 14px;
+  padding: 4px 0 16px;
 }
 /* The top card and the one under it share one grid cell; a card grows with its text up to the whole area. */
 .deck {
@@ -323,23 +595,28 @@ svg {
   z-index: 1;
 }
 .deck-next {
-  transform: translateY(26px) scale(0.94);
-  opacity: 0.7;
+  transform: translateY(24px) scale(0.94);
+  opacity: 0.6;
   pointer-events: none;
 }
+/* M3 elevated card, extra-large corners. */
 .mail-card {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  background: var(--paper);
-  border: 1px solid #e8e4dc;
-  border-radius: 24px;
-  box-shadow: var(--shadow);
-  padding: 20px;
+  gap: 16px;
+  background: var(--md-surface-container-lowest);
+  border-radius: var(--shape-xl);
+  box-shadow: var(--elevation-1);
+  padding: 24px;
   overflow: hidden;
   user-select: none;
+}
+@media (prefers-color-scheme: dark) {
+  .mail-card {
+    background: var(--md-surface-container-high);
+  }
 }
 .mail-card-sender {
   display: flex;
@@ -348,15 +625,15 @@ svg {
   min-width: 0;
 }
 .avatar {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   flex: none;
   color: #fff;
-  font-weight: 750;
-  font-size: 1.1rem;
+  font-weight: 500;
+  font-size: 1rem;
 }
 .sender-text {
   display: flex;
@@ -364,26 +641,33 @@ svg {
   min-width: 0;
   flex: 1;
 }
+.sender-text strong {
+  /* M3 title-medium. */
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
+}
 .sender-text strong,
 .sender-text span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sender-text span {
-  color: var(--muted);
-  font-size: 0.86rem;
+.sender-text span,
+.mail-card-sender time {
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 .mail-card-sender time {
-  color: var(--muted);
-  font-size: 0.86rem;
   align-self: flex-start;
   white-space: nowrap;
 }
 .mail-card-subject {
-  font-size: 1.32rem;
-  line-height: 1.28;
-  letter-spacing: -0.01em;
+  /* M3 title-large, emphasized. */
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 600;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
@@ -391,10 +675,12 @@ svg {
   overflow-wrap: anywhere;
 }
 .mail-card-snippet {
+  /* M3 body-large. */
   flex: 1;
   min-height: 3em;
-  color: #3e4452;
-  line-height: 1.5;
+  color: var(--md-on-surface-variant);
+  font-size: 1rem;
+  line-height: 1.5rem;
   overflow: hidden;
   overflow-wrap: anywhere;
   mask-image: linear-gradient(#000 70%, transparent);
@@ -408,74 +694,70 @@ svg {
 .mail-card-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 .fact {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--muted);
-  background: #f3f1ec;
-  border-radius: 999px;
-  padding: 4px 10px;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--shape-s);
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface-variant);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
 }
 .card-extras {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+/* M3 assist chip; a tone colors its icon and label. */
 .chip-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 38px;
-  padding: 0 13px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
-  background: color-mix(in srgb, var(--tone) 8%, white);
-  color: var(--tone);
-  font-size: 0.86rem;
-  font-weight: 650;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 16px 0 8px;
+  border-radius: var(--shape-s);
+  border: 1px solid var(--md-outline-variant);
+  background: transparent;
+  color: var(--tone, var(--md-on-surface));
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
 }
-.chip-button:hover {
-  background: color-mix(in srgb, var(--tone) 15%, white);
-}
-.chip-button:disabled {
-  opacity: 0.5;
-}
-/* "All from sender": a switch, not an action, so it stays neutral until it is on. */
+/* "All from sender": an M3 filter chip, filled and checked when selected. */
 .sender-toggle {
-  --tone: var(--ink);
-  background: var(--paper);
-  border-color: var(--line);
+  color: var(--md-on-surface-variant);
 }
 .sender-toggle[aria-pressed='true'] {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
+  border-color: transparent;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
 .swipe-intent {
   position: absolute;
-  top: 74px;
-  left: 18px;
-  background: #fff;
-  border: 3px solid var(--tone);
-  color: var(--tone);
-  padding: 5px 12px;
-  border-radius: 10px;
-  font-weight: 850;
-  font-size: 1.2rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  transform: rotate(-8deg);
+  top: 76px;
+  left: 20px;
+  background: var(--tone-container);
+  color: var(--on-tone-container);
+  padding: 8px 16px;
+  border-radius: var(--shape-m);
+  box-shadow: var(--elevation-1);
+  /* M3 title-large. */
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  transform: rotate(-6deg);
   pointer-events: none;
 }
 .intent-left {
   left: auto;
-  right: 18px;
-  transform: rotate(8deg);
+  right: 20px;
+  transform: rotate(6deg);
 }
 .intent-up,
 .intent-down {
@@ -484,7 +766,7 @@ svg {
 }
 .intent-up {
   top: auto;
-  bottom: 30px;
+  bottom: 32px;
 }
 .deck-message {
   flex: 1;
@@ -492,36 +774,49 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 16px;
   text-align: center;
-  color: var(--muted);
-  padding: 20px;
+  color: var(--md-on-surface-variant);
+  padding: 24px;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
-.inbox-zero svg {
-  color: var(--brand);
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--shape-xl);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
 .inbox-zero h2 {
-  color: var(--ink);
-  font-size: 1.4rem;
+  /* M3 headline-small. */
+  color: var(--md-on-surface);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 500;
 }
+/* M3 circular progress indicator. */
 .spinner {
-  width: 30px;
-  height: 30px;
-  border: 3px solid #eadfd8;
-  border-top-color: var(--brand);
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--md-secondary-container);
+  border-top-color: var(--md-primary);
   border-radius: 50%;
-  animation: spin 0.75s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
+/* M3 docked toolbar: the bottom actions, each a tonal button in its action's container color. */
 .action-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  padding-bottom: 12px;
+  padding-bottom: 16px;
 }
 .action-button {
   display: flex;
@@ -530,12 +825,19 @@ svg {
   justify-content: center;
   gap: 4px;
   min-height: 64px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
-  background: var(--paper);
-  color: var(--tone);
-  font-size: 0.8rem;
-  font-weight: 700;
+  border-radius: var(--shape-l);
+  border: 0;
+  background: var(--tone-container);
+  color: var(--on-tone-container);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: border-radius 200ms var(--ease-standard);
+}
+/* Expressive buttons morph their shape when pressed. */
+.action-button:active:not(:disabled) {
+  border-radius: var(--shape-m);
 }
 .action-button span {
   /* Up to two lines, so "Mark read" or a long label name fits a phone-wide bar. */
@@ -549,113 +851,187 @@ svg {
   overflow-wrap: anywhere;
   text-align: center;
   text-wrap: balance;
-  line-height: 1.15;
-}
-.action-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tone) 8%, white);
 }
 .action-button kbd {
   display: none;
   font: inherit;
-  font-size: 0.72rem;
-  color: var(--muted);
+  font-size: 0.6875rem;
+  opacity: 0.7;
 }
 @media (hover: hover) and (pointer: fine) {
   .action-button kbd {
     display: block;
   }
 }
+/* M3 snackbar: inverse surface, extra-small corners, the action in inverse primary, above the toolbar. */
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(96px + env(safe-area-inset-bottom));
+  bottom: calc(100px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 14px;
-  max-width: calc(100% - 28px);
-  background: var(--ink);
-  color: #fff;
-  border-radius: 14px;
-  padding: 10px 10px 10px 16px;
-  box-shadow: 0 12px 30px #0003;
-  font-size: 0.92rem;
-  animation: rise 0.18s ease-out;
+  gap: 8px;
+  width: max-content;
+  max-width: min(calc(100% - 32px), 528px);
+  min-height: 48px;
+  background: var(--md-inverse-surface);
+  color: var(--md-inverse-on-surface);
+  border-radius: var(--shape-xs);
+  padding: 6px 8px 6px 16px;
+  box-shadow: var(--elevation-3);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  animation: rise 250ms var(--ease-decelerate);
+}
+.toast > span {
+  padding: 8px 0;
 }
 .toast-error {
-  background: #8f2620;
   padding-right: 16px;
 }
+.toast-error::before {
+  content: '';
+  flex: none;
+  width: 4px;
+  align-self: stretch;
+  margin: -6px 4px -6px -16px;
+  border-radius: var(--shape-xs) 0 0 var(--shape-xs);
+  background: var(--md-error);
+}
 .toast-undo {
+  flex: none;
   border: 0;
-  background: #ffffff1f;
-  color: #ffd8cf;
-  font-weight: 750;
-  border-radius: 10px;
-  min-height: 36px;
-  padding: 0 14px;
+  background: transparent;
+  color: var(--md-inverse-primary);
+  font-weight: 500;
+  border-radius: var(--shape-full);
+  min-height: 40px;
+  padding: 0 12px;
 }
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translate(-50%, 8px);
+    transform: translate(-50%, 16px);
   }
 }
 
-/* Dialogs */
+/* Dialogs: M3 basic dialog, extra-large corners on surface-container-high. */
 dialog {
-  width: min(520px, calc(100% - 24px));
-  max-height: 90dvh;
-  background: var(--paper);
-  border: 1px solid var(--line);
+  width: min(560px, calc(100% - 48px));
+  max-height: calc(100dvh - 48px);
+  background: var(--md-surface-container-high);
+  border: 0;
   padding: 0;
-  color: var(--ink);
-  border-radius: 20px;
-  box-shadow: 0 25px 90px #1a141055;
+  color: var(--md-on-surface);
+  border-radius: var(--shape-xl);
+  box-shadow: var(--elevation-3);
 }
 dialog::backdrop {
-  background: #1f243088;
+  background: rgb(0 0 0 / 0.32);
+}
+dialog[open] {
+  display: flex;
+  flex-direction: column;
+  animation: dialog-in 250ms var(--ease-decelerate);
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px 12px 0 8px;
+}
+.modal-header h2 {
+  flex: 1;
+  min-width: 0;
+  /* M3 title-large. */
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 500;
 }
 .modal-content {
-  position: relative;
-  padding: 24px;
-}
-.modal-content > h2 {
-  padding-right: 36px;
-  margin-bottom: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 24px 24px;
 }
 .modal-content p {
-  color: var(--muted);
-  margin-top: 10px;
+  color: var(--md-on-surface-variant);
+  margin-top: 8px;
 }
-.close-modal {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+/* M3 full-screen dialog on compact screens: the header becomes a top app bar. */
+@media (max-width: 599px) {
+  dialog.full-screen {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    background: var(--md-surface);
+    box-shadow: none;
+  }
+  dialog.full-screen .modal-header {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  dialog.full-screen .modal-content {
+    flex: 1;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  }
+  dialog.full-screen[open] {
+    animation: sheet-in 300ms var(--ease-decelerate);
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+.basic-dialog {
+  width: min(312px, calc(100% - 48px));
+  padding: 24px;
+  gap: 16px;
+}
+.basic-dialog h2 {
+  /* M3 headline-small. */
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 400;
+}
+.basic-dialog p {
+  color: var(--md-on-surface-variant);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 .install-steps {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   padding-left: 22px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  line-height: 1.45;
+  gap: 12px;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 .install-steps svg {
   vertical-align: -3px;
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
 }
 
 /* Settings */
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 .settings-form fieldset {
   border: 0;
@@ -663,289 +1039,347 @@ dialog::backdrop {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  min-width: 0;
 }
 .settings-form legend {
-  font-weight: 750;
-  margin-bottom: 8px;
+  /* M3 title-small in primary, as list subheaders are. */
+  color: var(--md-primary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.006em;
+  margin-bottom: 12px;
   padding: 0;
 }
 .gesture-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 .gesture-cell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
 .gesture-choice,
-.query-field {
+.query-field,
+.filter-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--muted);
+  gap: 6px;
+  min-width: 0;
+  color: var(--md-on-surface-variant);
+  /* M3 body-small for field labels. */
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
 }
-.gesture-cell select,
-.gesture-cell input,
-.gesture-choice select,
-.filter-field select,
-.filter-field input,
-.query-field input {
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--page);
-  padding: 0 10px;
-  color: var(--ink);
-  font-size: 0.95rem;
+/* M3 outlined text fields and selects. */
+:is(.gesture-cell, .gesture-choice, .filter-field, .query-field, .label-picker, .label-new, .age-field)
+  :is(select, input[type='text'], input[type='number']) {
+  min-width: 0;
+  min-height: 56px;
+  border: 1px solid var(--md-outline);
+  border-radius: var(--shape-xs);
+  background: transparent;
+  padding: 0 16px;
+  color: var(--md-on-surface);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+}
+:is(.gesture-cell, .gesture-choice, .filter-field, .query-field, .label-picker, .label-new, .age-field)
+  :is(select, input):focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: -2px;
+  border-color: transparent;
+}
+select option {
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+}
+input::placeholder {
+  color: var(--md-on-surface-variant);
+  opacity: 0.8;
 }
 .toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 36px;
+  gap: 16px;
+  min-height: 48px;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 .toggle.small {
-  min-height: 30px;
-  font-size: 0.88rem;
+  min-height: 40px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--md-on-surface);
+}
+/* M3 checkbox: settings here apply on Save, which M3 gives to checkboxes rather than switches. */
+.toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0 3px;
+  accent-color: var(--md-primary);
+}
+/* M3 connected button group: one choice among a few. */
+.button-group {
+  display: flex;
+  gap: 2px;
+}
+.button-group button {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--shape-s);
+  background: var(--md-surface-container-highest);
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  transition: border-radius 200ms var(--ease-standard);
+}
+.button-group button:first-child {
+  border-radius: var(--shape-full) var(--shape-s) var(--shape-s) var(--shape-full);
+}
+.button-group button:last-child {
+  border-radius: var(--shape-s) var(--shape-full) var(--shape-full) var(--shape-s);
+}
+.button-group button[aria-checked='true'] {
+  border-radius: var(--shape-full);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
 
-/* Piles */
+/* Piles: an M3 list in a rounded group. */
 .pile-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
+  border-radius: var(--shape-l);
+  overflow: hidden;
 }
 .pile-list li {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
+  padding-right: 4px;
+  background: var(--md-surface-container);
+}
+@media (max-width: 599px) {
+  .pile-list li {
+    background: var(--md-surface-container-low);
+  }
 }
 .pile-row {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--page);
-  color: var(--ink);
+  gap: 16px;
+  min-height: 64px;
+  padding: 8px 8px 8px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--md-on-surface);
   font: inherit;
   text-align: left;
   cursor: pointer;
-}
-.pile-row:hover {
-  background: #ebe7df;
 }
 .pile-row-text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+}
+.pile-row-text strong {
+  /* M3 body-large for the headline of a list item. */
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
 }
 .pile-row-text span,
 .pile-summary {
-  color: var(--muted);
-  font-size: 0.82rem;
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   overflow-wrap: anywhere;
 }
 .pile-row svg {
   flex: none;
-  color: var(--muted);
+  color: var(--md-on-surface-variant);
 }
 .pile-editor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 .back-button {
   align-self: flex-start;
 }
 .quiet-button.danger {
   align-self: flex-start;
-  color: var(--red);
-}
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--muted);
+  border-color: var(--md-outline-variant);
+  color: var(--md-error);
 }
 .more-filters {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0 12px;
+  border-radius: var(--shape-l);
+  background: var(--md-surface-container);
+}
+@media (max-width: 599px) {
+  .more-filters {
+    background: var(--md-surface-container-low);
+  }
 }
 .more-filters summary {
-  min-height: 44px;
+  min-height: 56px;
   display: flex;
   align-items: center;
-  font-size: 0.92rem;
-  font-weight: 650;
+  padding: 0 16px;
+  border-radius: var(--shape-l);
+  color: var(--md-on-surface);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
   cursor: pointer;
 }
 .more-filters-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-bottom: 12px;
+  gap: 12px;
+  padding: 0 16px 16px;
 }
 .age-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6px;
-}
-.age-field input,
-.age-field select {
-  min-width: 0;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--page);
-  padding: 0 10px;
-  color: var(--ink);
-  font-size: 0.95rem;
+  gap: 8px;
 }
 .label-picker {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
+/* M3 input chips. */
 .label-chips {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 .label-chips li {
   max-width: 100%;
   overflow-wrap: anywhere;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   min-height: 32px;
-  padding: 0 4px 0 11px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--plum) 35%, transparent);
-  background: color-mix(in srgb, var(--plum) 8%, white);
-  color: var(--plum);
-  font-size: 0.86rem;
-  font-weight: 650;
+  padding: 0 4px 0 12px;
+  border-radius: var(--shape-s);
+  background: var(--plum-container);
+  color: var(--on-plum-container);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+.label-chips small {
+  font-weight: 400;
+  opacity: 0.8;
 }
 .label-chips button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--shape-full);
   background: transparent;
   color: inherit;
   cursor: pointer;
 }
-.label-chips button:hover {
-  background: color-mix(in srgb, var(--plum) 15%, white);
-}
 .label-new {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 .label-new input {
   flex: 1;
-  min-width: 0;
 }
-.label-picker select,
-.label-new input {
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--page);
-  padding: 0 10px;
-  color: var(--ink);
-  font-size: 0.95rem;
-}
-.toggle input {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--brand);
-}
-.settings-form .form-problem {
-  color: var(--red);
-  font-size: 0.88rem;
+.settings-form .form-problem,
+.form-problem {
+  color: var(--md-error);
+  font-size: 0.875rem;
   margin: 0;
 }
 .hint {
-  color: var(--muted);
-  font-size: 0.84rem;
+  color: var(--md-on-surface-variant);
+  font-size: 0.75rem;
+  line-height: 1rem;
   margin: 0 !important;
 }
 .hint code {
-  font-size: 0.8rem;
-  background: #f3f1ec;
-  border-radius: 6px;
-  padding: 1px 5px;
+  font-size: 0.75rem;
+  background: var(--md-surface-container-highest);
+  border-radius: var(--shape-xs);
+  padding: 1px 4px;
 }
 .account {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  border-top: 1px solid var(--line);
+  gap: 12px;
+  border-top: 1px solid var(--md-outline-variant);
   padding-top: 16px;
-  font-size: 0.9rem;
-  color: var(--muted);
+  color: var(--md-on-surface-variant);
   overflow-wrap: anywhere;
 }
 
-/* Read view */
+/* Read view: a full-screen surface with a top app bar and the docked toolbar. */
 .read-view {
   width: 100%;
   max-width: var(--column);
   height: 100dvh;
   max-height: 100dvh;
   border-radius: 0;
-  border: 0;
   margin: 0 auto;
   padding: 0;
-}
-.read-view[open] {
-  display: flex;
-  flex-direction: column;
+  background: var(--md-surface);
+  box-shadow: none;
 }
 .read-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: calc(8px + env(safe-area-inset-top)) 12px 8px 6px;
-  border-bottom: 1px solid var(--line);
+  gap: 4px;
+  min-height: 64px;
+  padding: calc(8px + env(safe-area-inset-top)) 16px 8px 4px;
 }
 .read-header h2 {
-  font-size: 1.08rem;
-  line-height: 1.3;
+  /* M3 title-large. */
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .read-body {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 12px 14px 20px;
+  padding: 8px 16px 24px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -958,29 +1392,38 @@ dialog::backdrop {
   margin-top: 40px;
 }
 .read-problem {
-  color: var(--red);
+  color: var(--md-error);
 }
 .message {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  background: var(--paper);
+  border: 0;
+  border-radius: var(--shape-l);
+  padding: 16px;
+  background: var(--md-surface-container-lowest);
+  color: var(--md-on-surface);
   text-align: left;
+}
+@media (prefers-color-scheme: dark) {
+  .message {
+    background: var(--md-surface-container);
+  }
 }
 .message.collapsed {
   flex-direction: row;
   align-items: center;
-  gap: 10px;
-  background: #faf9f6;
+  gap: 12px;
+  background: var(--md-surface-container);
 }
 .message-collapsed-text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+.message-collapsed-text strong {
+  font-weight: 500;
 }
 .message-collapsed-text span,
 .message-collapsed-text strong {
@@ -990,12 +1433,12 @@ dialog::backdrop {
 }
 .message-collapsed-text span,
 .message time {
-  color: var(--muted);
-  font-size: 0.84rem;
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
 }
 .message-header {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-start;
 }
 .message-people {
@@ -1003,29 +1446,35 @@ dialog::backdrop {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  font-size: 0.86rem;
-  color: var(--muted);
+  font-size: 0.875rem;
+  color: var(--md-on-surface-variant);
   overflow-wrap: anywhere;
 }
 .message-people strong {
-  color: var(--ink);
-  font-size: 0.95rem;
+  color: var(--md-on-surface);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
 }
 .message-header time {
   white-space: nowrap;
 }
+/* Email bodies stay on white in both themes: senders design them for it. */
 .message-frame {
   width: 100%;
   border: 0;
   display: block;
+  border-radius: var(--shape-s);
+  background: #fff;
 }
 .message-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 .message-empty {
-  color: var(--muted);
+  color: var(--md-on-surface-variant);
 }
 .show-images {
   align-self: flex-start;
@@ -1037,7 +1486,7 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 0.86rem;
+  font-size: 0.875rem;
 }
 .attachments li {
   display: flex;
@@ -1045,34 +1494,38 @@ dialog::backdrop {
   gap: 6px;
 }
 .attachments span {
-  color: var(--muted);
+  color: var(--md-on-surface-variant);
 }
 .expand-all {
   align-self: center;
-  color: var(--muted);
 }
 .read-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--paper);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--md-surface-container);
 }
 
 @media (max-width: 440px) {
   .top-actions .quiet-button {
     border: 0;
     padding: 0;
-    width: 42px;
+    width: 48px;
   }
   .top-actions .quiet-button span {
     display: none;
   }
+  .brand-name {
+    font-size: 1.25rem;
+  }
 }
 @media (max-width: 380px) {
   .mail-card {
-    padding: 16px;
+    padding: 20px;
+  }
+  .deck-picker select {
+    max-width: 8.5rem;
   }
 }
 @media (max-height: 640px) {

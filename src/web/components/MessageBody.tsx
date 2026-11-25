@@ -11,7 +11,7 @@ function frameDocument(html: string, images: boolean): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imageSources}; style-src 'unsafe-inline' https: http:; font-src https: http: data:">
 <meta name="referrer" content="no-referrer">
 <base target="_blank">
-<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
 </head><body>${html}</body></html>`;
 }
 

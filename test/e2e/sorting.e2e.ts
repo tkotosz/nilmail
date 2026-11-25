@@ -69,10 +69,12 @@ async function open(
     userAgent = undefined as string | undefined,
     /** Settings saved before the page opens. */
     settings = undefined as unknown,
+    colorScheme = 'light' as 'light' | 'dark',
   } = {},
 ) {
   const context = await browser.newContext({
     viewport: { width, height },
+    colorScheme,
     locale: 'en-GB',
     timezoneId: 'Europe/Budapest',
     hasTouch: Boolean(userAgent),
@@ -433,8 +435,8 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.getByLabel('Pile to sort').selectOption({ label: 'Edit piles…' });
   await page.getByRole('button', { name: 'New pile' }).click();
   await page.getByLabel('Name').fill('Accounting');
-  await page.getByLabel('Read or unread').selectOption('any');
-  await page.getByLabel('Where').selectOption('anywhere');
+  await page.getByRole('radio', { name: 'Either' }).click();
+  await page.getByRole('radio', { name: 'Anywhere' }).click();
   await page.getByLabel('Add to has labels').selectOption({ label: 'todo accounting' });
   await page.getByRole('combobox', { name: 'Right', exact: true }).selectOption('removeLabel');
   assert.equal(await page.getByLabel('Right swipe label to remove').inputValue(), todo.id, "the pile's own label comes first");
@@ -505,7 +507,7 @@ test('More filters stay folded until used, and a pile built with them loads its 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'New pile' }).click();
   await page.getByLabel('Name').fill('Anna');
-  await page.getByLabel('Read or unread').selectOption('any');
+  await page.getByRole('radio', { name: 'Either' }).click();
   const more = page.locator('details.more-filters');
   assert.equal(await more.getAttribute('open'), null, 'folded while none is set');
   await more.locator('summary').click();
@@ -533,6 +535,43 @@ test('More filters stay folded until used, and a pile built with them loads its 
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 5');
   assert.deepEqual(errors, []);
   await page.context().close();
+});
+
+test('the dark theme covers the deck, the read view, settings and sign-in', async () => {
+  const threads = sampleThreads(4);
+  threads[0]!.unsubscribe = { list: '<https://news.example/unsubscribe>' };
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail, { colorScheme: 'dark' });
+  await waitForCard(page);
+  const surface = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+  assert.equal(surface, 'rgb(22, 19, 16)', 'the dark surface');
+  await page.screenshot({ path: `${screenshots}dark-deck.png` });
+  await drag(page, -150, 10, async page => {
+    await page.locator('.swipe-intent').waitFor();
+    await page.screenshot({ path: `${screenshots}dark-dragging.png` });
+  });
+  await page.keyboard.press('ArrowUp');
+  await page.frameLocator('.message-frame').getByRole('heading').first().waitFor();
+  await page.screenshot({ path: `${screenshots}dark-read.png`, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Back to the deck' }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: /^Edit Unread/ }).click();
+  await page.screenshot({ path: `${screenshots}dark-settings.png` });
+  await page.getByLabel('Name').fill('Unread mail');
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('heading', { name: 'Discard changes?' }).waitFor();
+  await page.screenshot({ path: `${screenshots}dark-discard.png`, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.locator('dialog').first().waitFor({ state: 'hidden' });
+  assert.deepEqual(errors, []);
+  await page.context().close();
+
+  const { page: welcome } = await open(null, { colorScheme: 'dark' });
+  await welcome.route('**/api/auth/token', route => route.fulfill({ status: 401, json: { error: 'signed-out' } }));
+  await welcome.reload();
+  await welcome.getByRole('link', { name: 'Sign in with Google' }).waitFor();
+  await welcome.screenshot({ path: `${screenshots}dark-welcome.png` });
+  await welcome.context().close();
 });
 
 test('a change Gmail refuses puts the card back with a message', async () => {

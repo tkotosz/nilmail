@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { useId, useState } from 'react';
+import { ArrowLeft, Check, Trash2 } from 'lucide-react';
 import { actionLabels } from '../../core/actions.ts';
 import { categoryNames, hasMoreFilters, pileSummary, swipe } from '../../core/pile.ts';
 import {
@@ -104,6 +104,34 @@ function SwipeEditor({
   );
 }
 
+/** Material's connected button group: one choice among a few, each a toggle button in one row. */
+function ButtonGroup<Value extends string>({
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  name: string;
+  value: Value;
+  options: [Value, string][];
+  onChange(value: Value): void;
+}) {
+  const labelId = useId();
+  return (
+    <div className="filter-field">
+      <span id={labelId}>{name}</span>
+      <div className="button-group" role="radiogroup" aria-labelledby={labelId}>
+        {options.map(([option, text]) => (
+          <button key={option} type="button" role="radio" aria-checked={value === option} onClick={() => onChange(option)}>
+            {value === option && <Check size={16} aria-hidden="true" />}
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Everything about one pile: its name, the filters that choose its conversations, and its swipes. */
 export function PileEditor({
   pile,
@@ -140,27 +168,26 @@ export function PileEditor({
 
       <fieldset>
         <legend>Conversations</legend>
-        <div className="gesture-grid">
-          <label className="gesture-choice">
-            <span>Read or unread</span>
-            <select value={pile.filters.read} onChange={event => setFilters({ read: event.target.value as PileFilters['read'] })}>
-              <option value="unread">Unread</option>
-              <option value="read">Read</option>
-              <option value="any">Either</option>
-            </select>
-          </label>
-          <label className="gesture-choice">
-            <span>Where</span>
-            <select
-              value={pile.filters.where}
-              onChange={event => setFilters({ where: event.target.value as PileFilters['where'] })}
-            >
-              <option value="inbox">Inbox</option>
-              <option value="archived">Archived</option>
-              <option value="anywhere">Anywhere</option>
-            </select>
-          </label>
-        </div>
+        <ButtonGroup
+          name="Read or unread"
+          value={pile.filters.read}
+          options={[
+            ['unread', 'Unread'],
+            ['read', 'Read'],
+            ['any', 'Either'],
+          ]}
+          onChange={read => setFilters({ read })}
+        />
+        <ButtonGroup
+          name="Where"
+          value={pile.filters.where}
+          options={[
+            ['inbox', 'Inbox'],
+            ['archived', 'Archived'],
+            ['anywhere', 'Anywhere'],
+          ]}
+          onChange={where => setFilters({ where })}
+        />
         <div className="filter-field">
           <span>Has labels</span>
           <LabelPicker

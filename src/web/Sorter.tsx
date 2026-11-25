@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
-import { ChevronDown, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
+import { Check, ChevronDown, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
 import { actionDone, actionVerb, applySteps, coversSender, isUnread, stepsFor, undoSteps } from '../core/actions.ts';
 import { countFromLabel, pileCount, pileSearch, swipe } from '../core/pile.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
@@ -353,7 +353,7 @@ export function Sorter({
                     aria-pressed={Boolean(allFromSender)}
                     onClick={() => toggleAllFromSender(top)}
                   >
-                    <Layers size={15} aria-hidden="true" />{' '}
+                    {allFromSender ? <Check size={18} aria-hidden="true" /> : <Layers size={18} aria-hidden="true" />}{' '}
                     {findingSender
                       ? 'Finding all from sender…'
                       : allFromSender
@@ -390,7 +390,9 @@ export function Sorter({
           </div>
         ) : (
           <div className="deck-message inbox-zero">
-            <Inbox size={44} aria-hidden="true" />
+            <span className="empty-icon" aria-hidden="true">
+              <Inbox size={36} />
+            </span>
             <h2>Nothing left to sort</h2>
             {count && !count.estimate && count.value > 0 ? (
               <p>
@@ -457,20 +459,19 @@ export function Sorter({
       )}
 
       {dialog === 'settings' && (
-        <Modal name="Settings" className="settings-dialog" onClose={() => setDialog(null)}>
-          <SettingsForm
-            settings={settings}
-            email={email}
-            gmail={gmail}
-            onSignOut={onSignOut}
-            onSave={saved => {
-              // A changed search for the pile showing, or a deleted pile, starts the deck again (see onSearchChanged).
-              setSettings(saved);
-              if (!saveSettings(saved)) showToast({ text: 'The browser did not let nilmail save the settings.', tone: 'error' });
-              setDialog(null);
-            }}
-          />
-        </Modal>
+        <SettingsForm
+          settings={settings}
+          email={email}
+          gmail={gmail}
+          onSignOut={onSignOut}
+          onSave={saved => {
+            // A changed search for the pile showing, or a deleted pile, starts the deck again (see onSearchChanged).
+            setSettings(saved);
+            if (!saveSettings(saved)) showToast({ text: 'The browser did not let nilmail save the settings.', tone: 'error' });
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
       )}
 
       {dialog === 'install' && (

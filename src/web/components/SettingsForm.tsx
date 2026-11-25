@@ -5,6 +5,7 @@ import { restoreSettings } from '../../core/settings.ts';
 import { directions, type GmailLabel, type Pile, type Settings } from '../../core/types.ts';
 import { directionNames } from '../action-ui.ts';
 import { problemText, type WebGmail } from '../gmail-http.ts';
+import { DiscardDialog, Modal } from './Modal.tsx';
 import { isStaged } from './LabelPicker.tsx';
 import { PileEditor } from './PileEditor.tsx';
 import { PileList } from './PileList.tsx';
@@ -60,12 +61,15 @@ export function SettingsForm({
   email,
   gmail,
   onSave,
+  onClose,
   onSignOut,
 }: {
   settings: Settings;
   email: string;
   gmail: WebGmail;
   onSave(settings: Settings): void;
+  /** Closes without saving. */
+  onClose(): void;
   onSignOut(): void;
 }) {
   const [draft, setDraft] = useState(settings);
@@ -75,6 +79,10 @@ export function SettingsForm({
   const [labels, setLabels] = useState<GmailLabel[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Asking whether to drop unsaved changes, after a close. */
+  const [confirming, setConfirming] = useState(false);
+  const changed = JSON.stringify(draft) !== JSON.stringify(settings);
+  const requestClose = () => (changed ? setConfirming(true) : onClose());
 
   useEffect(() => {
     let current = true;
@@ -131,78 +139,90 @@ export function SettingsForm({
   }
 
   return (
-    <form
-      className="settings-form"
-      onSubmit={event => {
-        event.preventDefault();
-        void save();
-      }}
-    >
-      {editedPile ? (
-        <PileEditor
-          pile={editedPile}
-          known={labels ?? []}
-          onChange={changed => {
-            setPiles(piles => piles.map(pile => (pile.id === changed.id ? changed : pile)));
-            setProblem(null);
-          }}
-          onBack={() => setEditing(null)}
-          onDelete={
-            draft.piles.length > 1
-              ? () => {
-                  setPiles(piles => piles.filter(pile => pile.id !== editedPile.id));
-                  setEditing(null);
-                }
-              : undefined
-          }
-        />
-      ) : (
-        <>
-          <PileList piles={draft.piles} onEdit={setEditing} onMove={movePile} onAdd={addPile} />
-
-          <fieldset>
-            <legend>Mail</legend>
-            <label className="toggle">
-              <input
-                type="checkbox"
-                checked={draft.archiveMarksRead}
-                onChange={event => change('archiveMarksRead', event.target.checked)}
-              />
-              <span>Archive also marks as read</span>
-            </label>
-            <label className="toggle">
-              <input type="checkbox" checked={draft.loadImages} onChange={event => change('loadImages', event.target.checked)} />
-              <span>Load images in emails automatically</span>
-            </label>
-            <p className="hint">Loading images lets senders see when you open their email.</p>
-          </fieldset>
-        </>
-      )}
-
-      {problem && (
-        <p className="form-problem" role="alert">
-          {problem}
-        </p>
-      )}
-      <div className="modal-actions">
-        <button type="submit" className="button primary" disabled={saving}>
+    <Modal
+      name="Settings"
+      fullScreen
+      onClose={requestClose}
+      action={
+        <button type="submit" form="settings-form" className="button text" disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
-      </div>
+      }
+    >
+      <form
+        id="settings-form"
+        className="settings-form"
+        onSubmit={event => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        {editedPile ? (
+          <PileEditor
+            pile={editedPile}
+            known={labels ?? []}
+            onChange={changed => {
+              setPiles(piles => piles.map(pile => (pile.id === changed.id ? changed : pile)));
+              setProblem(null);
+            }}
+            onBack={() => setEditing(null)}
+            onDelete={
+              draft.piles.length > 1
+                ? () => {
+                    setPiles(piles => piles.filter(pile => pile.id !== editedPile.id));
+                    setEditing(null);
+                  }
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            <PileList piles={draft.piles} onEdit={setEditing} onMove={movePile} onAdd={addPile} />
 
-      {!editedPile && (
-        <div className="account">
-          <span>
-            Signed in as <strong>{email}</strong>
-          </span>
-          <button type="button" className="quiet-button" onClick={onSignOut}>
-            <LogOut size={16} aria-hidden="true" /> Sign out
-          </button>
-          <a href="/privacy" target="_blank" rel="noopener">
-            Privacy policy
-          </a>
-        </div>
-      )}
-    </form>
+            <fieldset>
+              <legend>Mail</legend>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={draft.archiveMarksRead}
+                  onChange={event => change('archiveMarksRead', event.target.checked)}
+                />
+                <span>Archive also marks as read</span>
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={draft.loadImages}
+                  onChange={event => change('loadImages', event.target.checked)}
+                />
+                <span>Load images in emails automatically</span>
+              </label>
+              <p className="hint">Loading images lets senders see when you open their email.</p>
+            </fieldset>
+          </>
+        )}
+
+        {problem && (
+          <p className="form-problem" role="alert">
+            {problem}
+          </p>
+        )}
+
+        {!editedPile && (
+          <div className="account">
+            <span>
+              Signed in as <strong>{email}</strong>
+            </span>
+            <button type="button" className="quiet-button" onClick={onSignOut}>
+              <LogOut size={16} aria-hidden="true" /> Sign out
+            </button>
+            <a href="/privacy" target="_blank" rel="noopener">
+              Privacy policy
+            </a>
+          </div>
+        )}
+      </form>
+      {confirming && <DiscardDialog onKeep={() => setConfirming(false)} onDiscard={onClose} />}
+    </Modal>
   );
 }
