@@ -90,9 +90,31 @@
       <p class="updated">Last updated 25 November 2026</p>
 
       <p>
-        nilmail is a small private app for sorting a Gmail inbox with swipes. Its owner runs it for themselves and a few people
-        they invite. This page explains what it does with your data.
+        nilmail is a small private app for sorting a Gmail inbox with swipes. Its owner runs one copy of it, for themselves and a
+        few people they invite, and everyone signs in to that copy with their own Google account. This page explains what it does
+        with your data.
       </p>
+
+      <h2>Who can sign in</h2>
+      <ul>
+        <li>
+          Only invited Google accounts. The owner keeps the list of invited email addresses in nilmail's server settings. That
+          list is the only thing the owner sees about you: they cannot see your mail, your labels or your settings.
+        </li>
+        <li>
+          Signing in takes two steps. First Google asks you only to share your email address. If that address is not on the list,
+          nilmail withdraws that access at once, keeps nothing, and you are not asked for Gmail. Only an invited account goes on
+          to the second step, where Google asks for access to Gmail.
+        </li>
+        <li>
+          Google warns that nilmail is not verified. That is because it is a small private app for fewer than 100 people the owner
+          knows, which Google treats as personal use; apps for the public go through Google's verification instead.
+        </li>
+        <li>
+          When the owner takes your address off the list, your access ends within an hour: the server stops renewing it and
+          withdraws nilmail's access to your Google account.
+        </li>
+      </ul>
 
       <h2>What nilmail can access</h2>
       <p>When you sign in with Google and agree, nilmail gets:</p>
@@ -121,9 +143,19 @@
       <p>
         nilmail runs on Cloudflare. Its server part only keeps you signed in. After you sign in, your browser holds a cookie with
         your email address and your Google sign-in, encrypted so that only nilmail's server can read it. About once an hour, your
-        browser sends that cookie to the server. The server uses it to get a fresh one-hour access key from Google and passes the
-        key back to your browser. Nothing is written to a database or stored on the server.
+        browser sends that cookie to the server. The server checks that your address is still invited, gets a fresh one-hour
+        access key from Google and passes the key back to your browser. Nothing is written to a database or stored on the server.
       </p>
+      <ul>
+        <li>
+          Cookies: the sign-in cookie lasts up to 400 days, or until you sign out. While you sign in, a second cookie that lasts
+          10 minutes makes sure the answer from Google belongs to your sign-in. nilmail sets no other cookies.
+        </li>
+        <li>
+          Like any web host, Cloudflare handles the requests to nilmail's address, such as your device's internet address. See
+          <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a>. Mail never passes through it.
+        </li>
+      </ul>
 
       <h2>Images in emails</h2>
       <p>
@@ -154,7 +186,7 @@
         Choose <strong>Sign out</strong> in nilmail's settings: this withdraws nilmail's access at Google and deletes the cookie.
         You can also remove nilmail any time at
         <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Your browser's saved settings go
-        away when you clear the site's data.
+        away when you clear the site's data. To be taken off the list of invited addresses, ask the owner.
       </p>
 
       <h2>Questions</h2>
