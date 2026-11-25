@@ -603,6 +603,45 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   await welcome.context().close();
 });
 
+test('piles reorder by dragging their handle, or with the arrow keys on it', async () => {
+  const threads = sampleThreads(6).map((thread, index) =>
+    index < 3 ? thread : { ...thread, labelIds: thread.labelIds.filter(label => label !== 'UNREAD') },
+  );
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail, { settings: unreadAndRead });
+  await waitForCard(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const names = () => page.locator('.pile-row .row-title').allTextContents();
+  assert.deepEqual(await names(), ['Unread', 'Read']);
+
+  const handle = page.getByRole('button', { name: /^Move Read/ });
+  const box = (await handle.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - box.height * 0.6, { steps: 6 });
+  await page.screenshot({ path: `${screenshots}settings-drag.png` });
+  await page.mouse.move(x, y - box.height * 1.1, { steps: 6 });
+  await page.mouse.up();
+  assert.deepEqual(await names(), ['Read', 'Unread'], 'dragged above Unread');
+
+  await page.getByRole('button', { name: /^Move Read/ }).press('ArrowDown');
+  assert.deepEqual(await names(), ['Unread', 'Read'], 'moved back down with a key');
+  await page.getByRole('button', { name: /^Move Unread/ }).press('ArrowDown');
+  assert.deepEqual(await names(), ['Read', 'Unread']);
+
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.locator('dialog').waitFor({ state: 'hidden' });
+  assert.deepEqual(await page.getByLabel('Pile to sort').locator('option').allTextContents(), [
+    'Read · 3',
+    'Unread · 3',
+    'Edit piles…',
+  ]);
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('a change Gmail refuses puts the card back with a message', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   gmail.failChanges = 500;

@@ -1408,13 +1408,32 @@ label.row:has(.row-select:focus-visible)::before {
   text-align: left;
   cursor: pointer;
 }
-.pile-move {
-  display: flex;
-  flex-direction: column;
+.drag-handle {
+  flex: none;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  border: 0;
+  border-radius: var(--shape-m);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  /* The handle takes the touch, so dragging it moves the pile instead of scrolling the page. */
+  touch-action: none;
+  cursor: grab;
 }
-.pile-move .icon-button.small {
-  width: 36px;
-  height: 32px;
+.drag-handle:active {
+  cursor: grabbing;
+}
+.pile-row.sorting {
+  transition: transform 200ms var(--ease-standard);
+}
+/* The dragged pile follows the finger at once, raised above the others. */
+.pile-row.dragging {
+  z-index: 1;
+  transition: none;
+  border-radius: var(--shape-l);
+  box-shadow: var(--elevation-3);
 }
 .back-link {
   align-self: flex-start;

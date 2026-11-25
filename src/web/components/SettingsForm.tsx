@@ -124,14 +124,12 @@ export function SettingsForm({
     }
   };
 
-  function movePile(id: string, by: -1 | 1) {
+  function movePile(id: string, index: number) {
     setPiles(piles => {
-      const from = piles.findIndex(item => item.id === id);
-      const to = from + by;
-      if (from < 0 || to < 0 || to >= piles.length) return piles;
-      const moved = [...piles];
-      [moved[from], moved[to]] = [moved[to]!, moved[from]!];
-      return moved;
+      const moving = piles.find(item => item.id === id);
+      if (!moving) return piles;
+      const rest = piles.filter(item => item.id !== id);
+      return [...rest.slice(0, index), moving, ...rest.slice(index)];
     });
   }
 
