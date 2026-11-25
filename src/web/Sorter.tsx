@@ -233,8 +233,14 @@ export function Sorter({
             </small>
           </span>
         </div>
+        <span className="unread-count" aria-live="polite">
+          {unread === null ? '' : `${unread} unread`}
+        </span>
         <div className="top-actions">
           <InstallButton onAppleHelp={() => setDialog('install')} />
+          <button type="button" className="icon-button" onClick={reload} aria-label="Refresh" title="Refresh">
+            <RefreshCw size={21} />
+          </button>
           <button
             type="button"
             className="icon-button"
@@ -248,14 +254,6 @@ export function Sorter({
       </header>
 
       <main className="deck-area">
-        <div className="deck-status">
-          <span className="unread-count" aria-live="polite">
-            {unread === null ? '' : `${unread} unread`}
-          </span>
-          <button type="button" className="icon-button small" onClick={reload} aria-label="Refresh" title="Refresh">
-            <RefreshCw size={17} />
-          </button>
-        </div>
         {top ? (
           <div className="deck">
             {next && (
