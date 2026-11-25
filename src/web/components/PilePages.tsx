@@ -12,11 +12,10 @@ import {
   type Swipe,
 } from '../../core/types.ts';
 import { actionUi, directionArrows, directionNames } from '../action-ui.ts';
-import { BackLink, CheckRow, FieldRow, Group, NavRow, RadioRow, RowIcon, SelectRow } from './SettingsRows.tsx';
+import { BackLink, CheckRow, FieldRow, Group, NavRow, RadioRow, RowIcon, SelectRow, SwitchRow } from './SettingsRows.tsx';
 
-/** A label named in Settings that Gmail does not have yet; Settings creates it on Save. */
-export const stagedLabel = (name: string): GmailLabel => ({ id: `new:${name.trim().toLowerCase()}`, name: name.trim() });
-export const isStaged = (label: GmailLabel) => label.id.startsWith('new:');
+/** Finds the label of that name (ignoring case, as Gmail does), creating it in Gmail when there is none. */
+export type LabelMaker = (name: string) => Promise<GmailLabel>;
 
 /** The pages inside Settings below the list of piles. */
 export type PilePage =
@@ -51,14 +50,22 @@ const withChosen = (known: GmailLabel[], chosen: GmailLabel[]) => [
   ...known,
 ];
 
-/** A row to name a new label; an existing label of that name (ignoring case, as Gmail does) is used instead. */
-function NewLabelRow({ known, onAdd }: { known: GmailLabel[]; onAdd(label: GmailLabel): void }) {
+/** A row to name a new label, created in Gmail at once; an existing label of that name is used instead. */
+function NewLabelRow({ makeLabel, onAdd }: { makeLabel: LabelMaker; onAdd(label: GmailLabel): void }) {
   const [name, setName] = useState('');
+  const [adding, setAdding] = useState(false);
   const add = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    onAdd(known.find(label => label.name.toLowerCase() === trimmed.toLowerCase()) ?? stagedLabel(trimmed));
-    setName('');
+    if (!trimmed || adding) return;
+    setAdding(true);
+    makeLabel(trimmed).then(
+      label => {
+        onAdd(label);
+        setName('');
+        setAdding(false);
+      },
+      () => setAdding(false),
+    );
   };
   return (
     <div className="row new-label-row">
@@ -74,8 +81,8 @@ function NewLabelRow({ known, onAdd }: { known: GmailLabel[]; onAdd(label: Gmail
           add();
         }}
       />
-      <button type="button" className="button text" onClick={add} disabled={!name.trim()}>
-        <Plus size={18} aria-hidden="true" /> Add
+      <button type="button" className="button text" onClick={add} disabled={!name.trim() || adding}>
+        <Plus size={18} aria-hidden="true" /> {adding ? 'Adding…' : 'Add'}
       </button>
     </div>
   );
@@ -85,12 +92,13 @@ function NewLabelRow({ known, onAdd }: { known: GmailLabel[]; onAdd(label: Gmail
 function LabelChecklist({
   known,
   chosen,
-  allowNew,
+  makeLabel,
   onChange,
 }: {
   known: GmailLabel[];
   chosen: GmailLabel[];
-  allowNew: boolean;
+  /** Given when new labels may be named here. */
+  makeLabel?: LabelMaker;
   onChange(labels: GmailLabel[]): void;
 }) {
   const all = withChosen(known, chosen);
@@ -105,18 +113,17 @@ function LabelChecklist({
             </RowIcon>
           }
           title={label.name}
-          value={isStaged(label) ? 'New: created on Save' : undefined}
           checked={chosen.some(item => item.id === label.id)}
           onChange={checked => onChange(checked ? [...chosen, label] : chosen.filter(item => item.id !== label.id))}
         />
       ))}
-      {allowNew && (
+      {makeLabel && (
         <NewLabelRow
-          known={all}
+          makeLabel={makeLabel}
           onAdd={label => onChange(chosen.some(item => item.id === label.id) ? chosen : [...chosen, label])}
         />
       )}
-      {!all.length && !allowNew && (
+      {!all.length && !makeLabel && (
         <div className="row">
           <span className="row-value">You have no labels yet.</span>
         </div>
@@ -209,7 +216,7 @@ function PileMain({
         ))}
       </Group>
       {onDelete && (
-        <Group>
+        <Group className="danger-group">
           <button type="button" className="row danger-row" onClick={onDelete}>
             <Trash2 size={20} aria-hidden="true" /> Delete this pile
           </button>
@@ -233,12 +240,14 @@ function SwipePage({
   pile,
   direction,
   known,
+  makeLabel,
   onChange,
   onBack,
 }: {
   pile: Pile;
   direction: Direction;
   known: GmailLabel[];
+  makeLabel: LabelMaker;
   onChange(swipe: Swipe): void;
   onBack(): void;
 }) {
@@ -269,12 +278,12 @@ function SwipePage({
             <LabelChecklist
               known={known}
               chosen={current.labels}
-              allowNew
+              makeLabel={makeLabel}
               onChange={labels => onChange({ ...current, labels })}
             />
           </Group>
           <Group>
-            <CheckRow
+            <SwitchRow
               title="Also archive"
               value="Files the conversation out of the inbox; read or unread stays as it was."
               checked={current.archive}
@@ -372,12 +381,12 @@ function MoreFiltersPage({
             autoCorrect="off"
           />
         </FieldRow>
-        <CheckRow
+        <SwitchRow
           title="Has an attachment"
           checked={filters.hasAttachment}
           onChange={hasAttachment => setFilters({ hasAttachment })}
         />
-        <CheckRow title="Has none of my labels" checked={filters.noLabels} onChange={noLabels => setFilters({ noLabels })} />
+        <SwitchRow title="Has none of my labels" checked={filters.noLabels} onChange={noLabels => setFilters({ noLabels })} />
       </Group>
       <p className="group-note">
         These make the count Gmail's estimate. Gmail checks labels per message, so a conversation where only one message has a
@@ -392,6 +401,7 @@ export function PileEditor({
   pile,
   page,
   known,
+  makeLabel,
   onChange,
   onOpen,
   onBack,
@@ -401,6 +411,7 @@ export function PileEditor({
   page: PilePage;
   /** The user's labels in Gmail. */
   known: GmailLabel[];
+  makeLabel: LabelMaker;
   onChange(pile: Pile): void;
   /** Opens a page of this pile; `pile` is the pile's own page. */
   onOpen(page: PilePage): void;
@@ -424,7 +435,7 @@ export function PileEditor({
             <LabelChecklist
               known={known}
               chosen={pile.filters[page.which]}
-              allowNew={page.which === 'hasLabels'}
+              makeLabel={page.which === 'hasLabels' ? makeLabel : undefined}
               onChange={labels => setFilters({ [page.which]: labels })}
             />
           </Group>
@@ -443,6 +454,7 @@ export function PileEditor({
           pile={pile}
           direction={page.direction}
           known={known}
+          makeLabel={makeLabel}
           onChange={changed => onChange({ ...pile, swipes: { ...pile.swipes, [page.direction]: changed } })}
           onBack={toPile}
         />

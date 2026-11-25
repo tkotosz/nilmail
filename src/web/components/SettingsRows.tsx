@@ -8,9 +8,9 @@ import { ArrowLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
  */
 
 /** A titled group of rows. */
-export function Group({ title, children }: { title?: string; children: ReactNode }) {
+export function Group({ title, className, children }: { title?: string; className?: string; children: ReactNode }) {
   return (
-    <section className="settings-group">
+    <section className={`settings-group${className ? ` ${className}` : ''}`}>
       {title && <h3 className="group-title">{title}</h3>}
       <div className="group">{children}</div>
     </section>
@@ -78,7 +78,7 @@ export function SelectRow<Value extends string>({
   );
 }
 
-/** A row with a checkbox at its end: these settings apply on Save, so Material gives them checkboxes, not switches. */
+/** A row with a checkbox at its end, for one of several related options, such as the labels of a pile. */
 export function CheckRow({
   title,
   value,
@@ -97,6 +97,32 @@ export function CheckRow({
       {icon}
       <RowText title={title} value={value} />
       <input type="checkbox" className="row-trailing" checked={checked} onChange={event => onChange(event.target.checked)} />
+    </label>
+  );
+}
+
+/** A standalone on/off setting with a switch at its end: settings apply as they change, which is what Material gives switches. */
+export function SwitchRow({
+  title,
+  value,
+  checked,
+  onChange,
+}: {
+  title: ReactNode;
+  value?: ReactNode;
+  checked: boolean;
+  onChange(checked: boolean): void;
+}) {
+  return (
+    <label className="row">
+      <RowText title={title} value={value} />
+      <input
+        type="checkbox"
+        role="switch"
+        className="switch row-trailing"
+        checked={checked}
+        onChange={event => onChange(event.target.checked)}
+      />
     </label>
   );
 }

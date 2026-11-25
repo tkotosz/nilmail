@@ -471,11 +471,10 @@ export function Sorter({
           email={email}
           gmail={gmail}
           onSignOut={onSignOut}
-          onSave={saved => {
+          onChange={changed => {
             // A changed search for the pile showing, or a deleted pile, starts the deck again (see onSearchChanged).
-            setSettings(saved);
-            if (!saveSettings(saved)) showToast({ text: 'The browser did not let nilmail save the settings.', tone: 'error' });
-            setDialog(null);
+            setSettings(changed);
+            if (!saveSettings(changed)) showToast({ text: 'The browser did not let nilmail save the settings.', tone: 'error' });
           }}
           onClose={() => setDialog(null)}
         />

@@ -387,7 +387,7 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
   await page.getByRole('button', { name: 'Down swipe: Skip' }).waitFor();
   await openSwipe(page, 'Left');
   await page.getByRole('radio', { name: 'Archive' }).check();
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await page.reload();
@@ -416,24 +416,30 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
   await openSwipe(page, 'Down');
   await page.getByRole('radio', { name: 'Add labels' }).check();
+  await page.getByText('Choose a label for the down swipe. Until then, this change is not saved.').waitFor();
   await page.getByRole('button', { name: 'Unread', exact: true }).click();
-  await page.getByRole('button', { name: 'Save' }).click();
-  await page.getByText('Choose a label for the down swipe.').waitFor();
-  assert.ok(await page.getByRole('radio', { name: 'Add labels' }).isChecked(), 'Save opens the swipe that needs a label');
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('heading', { name: 'Leave without this change?' }).waitFor();
+  await page.screenshot({ path: `${screenshots}settings-leave.png`, animations: 'disabled' });
+  await page.getByRole('button', { name: 'Fix it' }).click();
+  assert.ok(await page.getByRole('radio', { name: 'Add labels' }).isChecked(), 'Fix it opens the swipe that needs a label');
   assert.deepEqual(
     await page.getByRole('checkbox').evaluateAll(boxes => boxes.map(box => box.closest('label')?.textContent?.trim())),
-    ['Receipts', 'Also archiveFiles the conversation out of the inbox; read or unread stays as it was.'],
-    'only user labels, and Also archive',
+    ['Receipts'],
+    'only user labels',
   );
   await page.getByRole('checkbox', { name: 'Receipts' }).check();
+  await page.getByText('Choose a label for the down swipe.').waitFor({ state: 'hidden' });
   await page.getByLabel('New label').fill('todo accounting');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  assert.ok(await page.getByRole('checkbox', { name: /todo accounting/ }).isChecked());
-  await page.screenshot({ path: `${screenshots}settings-labels.png` });
-  await page.getByRole('button', { name: 'Save' }).click();
-  await page.locator('dialog').waitFor({ state: 'hidden' });
+  await page.getByRole('checkbox', { name: 'todo accounting' }).waitFor();
+  assert.ok(await page.getByRole('checkbox', { name: 'todo accounting' }).isChecked());
   const todo = gmail.labelList.find(label => label.name === 'todo accounting')!;
-  assert.ok(todo, 'the new label is created in Gmail');
+  assert.ok(todo, 'the new label is created in Gmail as soon as it is added');
+  assert.ok(await page.getByRole('switch', { name: /Also archive/ }).isChecked());
+  await page.screenshot({ path: `${screenshots}settings-labels.png` });
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await page.keyboard.press('ArrowDown');
   await page.getByRole('status').filter({ hasText: 'Moved to Receipts, todo accounting' }).waitFor();
@@ -457,7 +463,7 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.screenshot({ path: `${screenshots}settings-pile.png` });
   await page.getByRole('button', { name: 'All piles' }).click();
   await page.screenshot({ path: `${screenshots}settings.png` });
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await waitForCount(page, 'Accounting · 1');
@@ -526,7 +532,7 @@ test('More filters have a page of their own, and a pile built with them loads it
   await page.getByLabel('Older than, amount').fill('6');
   await page.getByLabel('Older than, unit').selectOption('m');
   await page.getByLabel('From', { exact: true }).fill('anna@example.com');
-  await page.getByRole('checkbox', { name: 'Has an attachment' }).check();
+  await page.getByRole('switch', { name: 'Has an attachment' }).check();
   await page.screenshot({ path: `${screenshots}settings-more-filters.png` });
   await page.getByRole('button', { name: 'Anna', exact: true }).click();
   await page
@@ -534,7 +540,7 @@ test('More filters have a page of their own, and a pile built with them loads it
     .filter({ hasText: 'Updates · older than 6 months · from anna@example.com · with attachment' })
     .waitFor();
   await page.getByRole('button', { name: 'All piles' }).click();
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await waitForCount(page, 'Anna · ~3');
@@ -571,12 +577,21 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
   await page.screenshot({ path: `${screenshots}dark-settings.png` });
-  await page.getByLabel('Name', { exact: true }).fill('Unread mail');
+  await page.getByRole('button', { name: 'All piles' }).click();
+  await page.getByRole('button', { name: 'New pile' }).click();
+  await page.getByRole('button', { name: 'Delete this pile' }).click();
+  await page.getByRole('heading', { name: 'Delete New pile?' }).waitFor();
+  await page.screenshot({ path: `${screenshots}dark-delete.png`, animations: 'disabled' });
+  await page.locator('dialog.basic-dialog').getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('button', { name: /^Edit New pile/ }).waitFor({ state: 'detached' });
+  await page.screenshot({ path: `${screenshots}dark-settings-list.png` });
   await page.getByRole('button', { name: 'Close' }).click();
-  await page.getByRole('heading', { name: 'Discard changes?' }).waitFor();
-  await page.screenshot({ path: `${screenshots}dark-discard.png`, animations: 'disabled' });
-  await page.getByRole('button', { name: 'Discard' }).click();
   await page.locator('dialog').first().waitFor({ state: 'hidden' });
+  assert.deepEqual(
+    await page.getByLabel('Pile to sort').locator('option').allTextContents(),
+    ['Unread · 3', 'Edit piles…'],
+    'the deleted pile is gone, saved without a Save button',
+  );
   assert.deepEqual(errors, []);
   await page.context().close();
 

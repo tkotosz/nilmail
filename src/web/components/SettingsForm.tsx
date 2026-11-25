@@ -1,21 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { ExternalLink, LogOut } from 'lucide-react';
 import { newPile } from '../../core/pile.ts';
 import { restoreSettings } from '../../core/settings.ts';
 import { directions, type GmailLabel, type Pile, type Settings } from '../../core/types.ts';
 import { directionNames } from '../action-ui.ts';
 import { problemText, type WebGmail } from '../gmail-http.ts';
-import { DiscardDialog, Modal } from './Modal.tsx';
-import { isStaged, PileEditor, type PilePage } from './PilePages.tsx';
+import { ConfirmDialog, Modal } from './Modal.tsx';
+import { PileEditor, type LabelMaker, type PilePage } from './PilePages.tsx';
 import { PileList } from './PileList.tsx';
-import { CheckRow, Group } from './SettingsRows.tsx';
-
-/** Every label a pile names, in its filters and its swipes. */
-const pileLabels = (pile: Pile): GmailLabel[] => [
-  ...pile.filters.hasLabels,
-  ...pile.filters.lacksLabels,
-  ...directions.flatMap(direction => pile.swipes[direction].labels),
-];
+import { Group, SwitchRow } from './SettingsRows.tsx';
 
 /** Where Settings shows: the list of piles (null), or a page of one pile. */
 type Place = { pileId: string; page: PilePage } | null;
@@ -37,44 +30,26 @@ function problemWith(piles: Pile[]): { place: NonNullable<Place>; text: string }
   return null;
 }
 
-/**
- * The piles with every label named in the form created in Gmail, so each has a real id. A name Gmail already has
- * (ignoring case, as Gmail does) uses that label instead.
- */
-async function withCreatedLabels(
-  piles: Pile[],
-  known: GmailLabel[],
-  createLabel: (name: string) => Promise<GmailLabel>,
-): Promise<Pile[]> {
-  const created = new Map<string, GmailLabel>();
-  for (const label of piles.flatMap(pileLabels).filter(isStaged)) {
-    if (created.has(label.id)) continue;
-    const existing = known.find(item => item.name.toLowerCase() === label.name.toLowerCase());
-    created.set(label.id, existing ?? (await createLabel(label.name)));
-  }
-  const real = (labels: GmailLabel[]) => labels.map(label => created.get(label.id) ?? label);
-  return piles.map(pile => ({
-    ...pile,
-    filters: { ...pile.filters, hasLabels: real(pile.filters.hasLabels), lacksLabels: real(pile.filters.lacksLabels) },
-    swipes: Object.fromEntries(
-      directions.map(direction => [direction, { ...pile.swipes[direction], labels: real(pile.swipes[direction].labels) }]),
-    ) as Pile['swipes'],
-  }));
-}
+/** How long typing pauses before a change is saved, so a pile's search does not reload the deck on every key. */
+const saveDelay = 600;
 
+/**
+ * Settings save as they change. A change that cannot work yet, such as an Add labels swipe without a label, waits with a
+ * notice until it is complete; closing then asks whether to drop it.
+ */
 export function SettingsForm({
   settings,
   email,
   gmail,
-  onSave,
+  onChange,
   onClose,
   onSignOut,
 }: {
   settings: Settings;
   email: string;
   gmail: WebGmail;
-  onSave(settings: Settings): void;
-  /** Closes without saving. */
+  /** Applies and stores changed settings. */
+  onChange(settings: Settings): void;
   onClose(): void;
   onSignOut(): void;
 }) {
@@ -83,11 +58,11 @@ export function SettingsForm({
   /** The user's labels, or null while they load. */
   const [labels, setLabels] = useState<GmailLabel[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  /** Asking whether to drop unsaved changes, after a close. */
-  const [confirming, setConfirming] = useState(false);
-  const changed = JSON.stringify(draft) !== JSON.stringify(settings);
-  const requestClose = () => (changed ? setConfirming(true) : onClose());
+  /** A confirmation on screen: deleting a pile, or leaving with a change that cannot be saved. */
+  const [confirming, setConfirming] = useState<{ kind: 'delete'; pile: Pile } | { kind: 'leave' } | null>(null);
+  /** The settings as last handed on, to save only real changes. */
+  const saved = useRef(JSON.stringify(settings));
+  const invalid = problemWith(draft.piles);
 
   useEffect(() => {
     let current = true;
@@ -96,13 +71,33 @@ export function SettingsForm({
       () => {
         if (!current) return;
         setLabels([]);
-        setProblem('Your Gmail labels could not be loaded. You can still name a new one.');
+        setProblem('Your Gmail labels could not be loaded.');
       },
     );
     return () => {
       current = false;
     };
   }, [gmail]);
+
+  /** Hands on `next` when it can work and differs from what was saved. */
+  function save(next: Settings) {
+    if (problemWith(next.piles)) return;
+    const json = JSON.stringify(next);
+    if (json === saved.current) return;
+    saved.current = json;
+    onChange(restoreSettings(next));
+  }
+  const saveDraft = useEffectEvent(() => save(draft));
+  useEffect(() => {
+    const timer = setTimeout(saveDraft, saveDelay);
+    return () => clearTimeout(timer);
+  }, [draft]);
+
+  function close() {
+    if (invalid) return setConfirming({ kind: 'leave' });
+    save(draft);
+    onClose();
+  }
 
   /** Every page starts at its top. */
   const go = (next: Place) => {
@@ -113,6 +108,21 @@ export function SettingsForm({
     setDraft(current => ({ ...current, [key]: value }));
   const setPiles = (update: (piles: Pile[]) => Pile[]) => setDraft(current => ({ ...current, piles: update(current.piles) }));
   const pile = place && draft.piles.find(item => item.id === place.pileId);
+
+  const makeLabel: LabelMaker = async name => {
+    const known = labels ?? [];
+    const existing = known.find(label => label.name.toLowerCase() === name.toLowerCase());
+    if (existing) return existing;
+    try {
+      const created = await gmail.createLabel(name);
+      setLabels(current => [...(current ?? []), created]);
+      setProblem(null);
+      return created;
+    } catch (error) {
+      setProblem(`The label could not be created. ${problemText(error)}`);
+      throw error;
+    }
+  };
 
   function movePile(id: string, by: -1 | 1) {
     setPiles(piles => {
@@ -131,46 +141,20 @@ export function SettingsForm({
     go({ pileId: added.id, page: { name: 'pile' } });
   }
 
-  async function save() {
-    const invalid = problemWith(draft.piles);
-    if (invalid) {
-      go(invalid.place);
-      return setProblem(invalid.text);
-    }
-    setSaving(true);
-    setProblem(null);
-    try {
-      const piles = await withCreatedLabels(draft.piles, [...(labels ?? [])], name => gmail.createLabel(name));
-      onSave(restoreSettings({ ...draft, piles }));
-    } catch (error) {
-      setProblem(`The label could not be saved. ${problemText(error)}`);
-      setSaving(false);
-    }
+  function deletePile(id: string) {
+    const next = { ...draft, piles: draft.piles.filter(item => item.id !== id) };
+    setDraft(next);
+    save(next);
+    setConfirming(null);
+    go(null);
   }
 
   return (
-    <Modal
-      name="Settings"
-      fullScreen
-      className="settings-dialog"
-      onClose={requestClose}
-      action={
-        <button type="submit" form="settings-form" className="button text" disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      }
-    >
-      <form
-        id="settings-form"
-        className="settings-form"
-        onSubmit={event => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        {problem && (
+    <Modal name="Settings" fullScreen className="settings-dialog" onClose={close}>
+      <div className="settings-form">
+        {(invalid || problem) && (
           <p className="form-problem" role="alert">
-            {problem}
+            {invalid ? `${invalid.text} Until then, this change is not saved.` : problem}
           </p>
         )}
         {pile && place ? (
@@ -178,20 +162,11 @@ export function SettingsForm({
             pile={pile}
             page={place.page}
             known={labels ?? []}
-            onChange={edited => {
-              setPiles(piles => piles.map(item => (item.id === edited.id ? edited : item)));
-              setProblem(null);
-            }}
+            makeLabel={makeLabel}
+            onChange={edited => setPiles(piles => piles.map(item => (item.id === edited.id ? edited : item)))}
             onOpen={page => go({ pileId: pile.id, page })}
             onBack={() => go(null)}
-            onDelete={
-              draft.piles.length > 1
-                ? () => {
-                    setPiles(piles => piles.filter(item => item.id !== pile.id));
-                    go(null);
-                  }
-                : undefined
-            }
+            onDelete={draft.piles.length > 1 ? () => setConfirming({ kind: 'delete', pile }) : undefined}
           />
         ) : (
           <>
@@ -203,12 +178,12 @@ export function SettingsForm({
             />
             <p className="group-note">The picker in the header lists the piles in this order, and nilmail opens on the first.</p>
             <Group title="Mail">
-              <CheckRow
+              <SwitchRow
                 title="Archive also marks as read"
                 checked={draft.archiveMarksRead}
                 onChange={checked => change('archiveMarksRead', checked)}
               />
-              <CheckRow
+              <SwitchRow
                 title="Load images in emails automatically"
                 value="Loading images lets senders see when you open their email."
                 checked={draft.loadImages}
@@ -233,8 +208,29 @@ export function SettingsForm({
             </Group>
           </>
         )}
-      </form>
-      {confirming && <DiscardDialog onKeep={() => setConfirming(false)} onDiscard={onClose} />}
+      </div>
+      {confirming?.kind === 'delete' && (
+        <ConfirmDialog
+          title={`Delete ${confirming.pile.name || 'this pile'}?`}
+          text="The pile and its swipes go away. Your mail and labels stay as they are."
+          confirm="Delete"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => deletePile(confirming.pile.id)}
+        />
+      )}
+      {confirming?.kind === 'leave' && invalid && (
+        <ConfirmDialog
+          title="Leave without this change?"
+          text={invalid.text}
+          confirm="Leave"
+          cancel="Fix it"
+          onCancel={() => {
+            setConfirming(null);
+            go(invalid.place);
+          }}
+          onConfirm={onClose}
+        />
+      )}
     </Modal>
   );
 }

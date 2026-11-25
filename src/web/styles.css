@@ -1249,6 +1249,61 @@ label.row:has(.row-select:focus-visible)::before {
   margin: 0 2px;
   accent-color: var(--md-primary);
 }
+/* M3 switch: a 52×32 track, outlined when off, primary when on; the handle grows from 16 to 24px. */
+.row input.switch {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border: 2px solid var(--md-outline);
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-highest);
+  cursor: pointer;
+  transition:
+    background 150ms var(--ease-standard),
+    border-color 150ms var(--ease-standard);
+}
+.row input.switch::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--md-outline);
+  transform: translateY(-50%);
+  transition:
+    left 200ms var(--ease-standard),
+    width 200ms var(--ease-standard),
+    height 200ms var(--ease-standard),
+    background 150ms var(--ease-standard);
+}
+.row input.switch:checked {
+  border-color: var(--md-primary);
+  background: var(--md-primary);
+}
+.row input.switch:checked::before {
+  left: 22px;
+  width: 24px;
+  height: 24px;
+  background: var(--md-on-primary);
+}
+.row:active input.switch::before {
+  width: 28px;
+  height: 28px;
+}
+.row:active input.switch:not(:checked)::before {
+  left: 0;
+}
+.row:active input.switch:checked::before {
+  left: 18px;
+}
+.danger-group {
+  margin-top: 24px;
+}
 .row-icon {
   flex: none;
   display: grid;

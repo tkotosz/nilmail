@@ -52,8 +52,23 @@ export function Modal({
   );
 }
 
-/** Material's basic dialog asking before unsaved changes are lost. */
-export function DiscardDialog({ onKeep, onDiscard }: { onKeep(): void; onDiscard(): void }) {
+/** Material's basic dialog asking to confirm something that cannot be undone, such as deleting a pile. */
+export function ConfirmDialog({
+  title,
+  text,
+  confirm,
+  cancel = 'Cancel',
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  text: string;
+  /** The confirming button's label, such as "Delete". */
+  confirm: string;
+  cancel?: string;
+  onCancel(): void;
+  onConfirm(): void;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
@@ -62,20 +77,20 @@ export function DiscardDialog({ onKeep, onDiscard }: { onKeep(): void; onDiscard
     <dialog
       ref={ref}
       className="basic-dialog"
-      aria-labelledby="discard-title"
+      aria-labelledby="confirm-title"
       onCancel={event => {
         event.preventDefault();
-        onKeep();
+        onCancel();
       }}
     >
-      <h2 id="discard-title">Discard changes?</h2>
-      <p>Your changes to the settings have not been saved.</p>
+      <h2 id="confirm-title">{title}</h2>
+      <p>{text}</p>
       <div className="dialog-actions">
-        <button type="button" className="button text" onClick={onKeep}>
-          Keep editing
+        <button type="button" className="button text" onClick={onCancel}>
+          {cancel}
         </button>
-        <button type="button" className="button text" onClick={onDiscard}>
-          Discard
+        <button type="button" className="button text" onClick={onConfirm}>
+          {confirm}
         </button>
       </div>
     </dialog>
