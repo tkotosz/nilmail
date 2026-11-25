@@ -296,27 +296,6 @@ export function Sorter({
             </small>
           </span>
         </div>
-        <div className="unread-status">
-          <label className="deck-picker">
-            <select
-              value={pile.id}
-              onChange={event => (event.target.value === editPiles ? setDialog('settings') : showPile(event.target.value))}
-              aria-label="Pile to sort"
-              title={count?.estimate ? `About ${numbers.format(count.value)} (Gmail's estimate)` : undefined}
-            >
-              {settings.piles.map(item => (
-                <option key={item.id} value={item.id}>
-                  {pileLabel(item, counts[item.id])}
-                </option>
-              ))}
-              <option value={editPiles}>Edit piles…</option>
-            </select>
-            <ChevronDown size={15} aria-hidden="true" />
-          </label>
-          <button type="button" className="icon-button small" onClick={reload} aria-label="Refresh" title="Refresh">
-            <RefreshCw size={17} />
-          </button>
-        </div>
         <div className="top-actions">
           <InstallButton onAppleHelp={() => setDialog('install')} />
           <button
@@ -330,6 +309,27 @@ export function Sorter({
           </button>
         </div>
       </header>
+      <div className="pile-bar">
+        <label className="deck-picker">
+          <select
+            value={pile.id}
+            onChange={event => (event.target.value === editPiles ? setDialog('settings') : showPile(event.target.value))}
+            aria-label="Pile to sort"
+            title={count?.estimate ? `About ${numbers.format(count.value)} (Gmail's estimate)` : undefined}
+          >
+            {settings.piles.map(item => (
+              <option key={item.id} value={item.id}>
+                {pileLabel(item, counts[item.id])}
+              </option>
+            ))}
+            <option value={editPiles}>Edit piles…</option>
+          </select>
+          <ChevronDown size={15} aria-hidden="true" />
+        </label>
+        <button type="button" className="icon-button small" onClick={reload} aria-label="Refresh" title="Refresh">
+          <RefreshCw size={17} />
+        </button>
+      </div>
 
       <main className="deck-area">
         {top ? (

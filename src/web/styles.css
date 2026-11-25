@@ -496,11 +496,14 @@ svg {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.unread-status {
+/* The pile picker and Refresh, centered in their own row under the top app bar, so a long pile name and its count fit. */
+.pile-bar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
   min-width: 0;
+  padding: 0 0 4px 40px;
 }
 /* The pile picker: a tonal dropdown pill, as M3's filled tonal button with a menu. */
 .deck-picker {
@@ -515,7 +518,7 @@ svg {
 .deck-picker select {
   appearance: none;
   min-width: 0;
-  max-width: 11rem;
+  max-width: calc(100vw - 120px);
   min-height: 40px;
   border: 0;
   border-radius: inherit;
@@ -1465,9 +1468,6 @@ label.row:has(.row-select:focus-visible)::before {
 @media (max-width: 380px) {
   .mail-card {
     padding: 20px;
-  }
-  .deck-picker select {
-    max-width: 8.5rem;
   }
 }
 @media (max-height: 640px) {
