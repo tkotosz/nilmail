@@ -18,11 +18,10 @@ function problemWith(piles: Pile[]): { place: NonNullable<Place>; text: string }
   for (const pile of piles) {
     if (!pile.name.trim()) return { place: { pileId: pile.id, page: { name: 'pile' } }, text: 'Give the pile a name.' };
     for (const direction of directions) {
-      const { action, labels } = pile.swipes[direction];
-      if ((action === 'addLabels' || action === 'removeLabel') && !labels.length) {
+      if (!pile.swipes[direction].actions.length) {
         return {
           place: { pileId: pile.id, page: { name: 'swipe', direction } },
-          text: `Choose a label for the ${directionNames[direction].toLowerCase()} swipe.`,
+          text: `Choose what the ${directionNames[direction].toLowerCase()} swipe does.`,
         };
       }
     }
@@ -175,11 +174,6 @@ export function SettingsForm({
               onAdd={addPile}
             />
             <Group title="Mail">
-              <SwitchRow
-                title="Archive also marks as read"
-                checked={draft.archiveMarksRead}
-                onChange={checked => change('archiveMarksRead', checked)}
-              />
               <SwitchRow
                 title="Load images in emails automatically"
                 value="Loading images lets senders see when you open their email."

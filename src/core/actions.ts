@@ -1,90 +1,116 @@
 import { isUserLabel } from './pile.ts';
-import type { ActionId, GmailStep, MailCard, Settings, Swipe } from './types.ts';
+import type { Action, ActionId, GmailStep, MailCard, Swipe } from './types.ts';
 
-/** Each action's name in Settings and the read view, and what the toast says after it. */
+/** Each action's name in Settings and the read view, and what the message after it says. */
 export const actionLabels: Record<ActionId, { verb: string; done: string }> = {
+  markRead: { verb: 'Mark read', done: 'Marked read' },
   archive: { verb: 'Archive', done: 'Archived' },
   delete: { verb: 'Delete', done: 'Moved to Bin' },
-  markRead: { verb: 'Mark read', done: 'Marked read' },
+  addLabel: { verb: 'Add label', done: 'Labeled' },
+  removeLabel: { verb: 'Remove label', done: 'Label removed' },
+  removeAllLabels: { verb: 'Remove all labels', done: 'Labels removed' },
   read: { verb: 'Read', done: 'Opened' },
   reply: { verb: 'Reply', done: 'Opened in Gmail' },
   skip: { verb: 'Skip', done: 'Skipped' },
-  addLabels: { verb: 'Add labels', done: 'Labeled' },
-  removeLabel: { verb: 'Remove label', done: 'Label removed' },
-  removeAllLabels: { verb: 'Remove all labels', done: 'Labels removed' },
   unsubscribe: { verb: 'Unsubscribe', done: 'Unsubscribed and archived' },
 };
 
-const labelNames = (swipe: Swipe) => swipe.labels.map(label => label.name).join(', ');
+/** An action's short name on a button: label actions name their label, such as "Later" or "− Later". */
+function shortName(action: Action): string {
+  if (action.id === 'addLabel' && action.label) return action.label.name;
+  if (action.id === 'removeLabel' && action.label) return `− ${action.label.name}`;
+  if (action.id === 'removeAllLabels') return 'Clear labels';
+  return actionLabels[action.id].verb;
+}
 
-/** What a swipe's button and swipe label show: label actions name their labels, such as "Invoices" or "− Invoices". */
+/**
+ * What a swipe's button and swipe label show, short enough for a phone: its main action, and how many more it does, such
+ * as "Archive +1" for Mark read and Archive; " all" when it covers the sender. Settings lists every action.
+ */
 export function actionVerb(swipe: Swipe): string {
-  if (swipe.allFromSender && coversSender(swipe.action)) return `${actionVerb({ ...swipe, allFromSender: false })} all`;
-  if (swipe.action === 'addLabels' && swipe.labels.length) return labelNames(swipe);
-  if (swipe.action === 'removeLabel' && swipe.labels.length) return `− ${labelNames(swipe)}`;
-  if (swipe.action === 'removeAllLabels') return 'Clear labels';
-  return actionLabels[swipe.action].verb;
+  const main = mainAction(swipe);
+  const shown = swipe.actions.find(action => action.id === main) ?? swipe.actions[0];
+  const more = swipe.actions.length - 1;
+  const name = `${shown ? shortName(shown) : 'Nothing'}${more > 0 ? ` +${more}` : ''}`;
+  return swipe.allFromSender && coversSender(swipe) ? `${name} all` : name;
 }
 
-/** What the toast says after the swipe. */
+/** What one action did, for the message after it, such as "labeled Later". */
+function doneText(action: Action): string {
+  if (action.id === 'addLabel' && action.label) return `Labeled ${action.label.name}`;
+  if (action.id === 'removeLabel' && action.label) return `Removed ${action.label.name}`;
+  return actionLabels[action.id].done;
+}
+
+/** What the message after the swipe says, such as "Marked read and archived". */
 export function actionDone(swipe: Swipe): string {
-  if (swipe.action === 'addLabels' && swipe.labels.length) {
-    return swipe.archive ? `Moved to ${labelNames(swipe)}` : `Labeled ${labelNames(swipe)}`;
-  }
-  if (swipe.action === 'removeLabel' && swipe.labels.length) return `Removed ${labelNames(swipe)}`;
-  return actionLabels[swipe.action].done;
+  const parts = swipe.actions.map(doneText).map((text, index) => (index ? text.charAt(0).toLowerCase() + text.slice(1) : text));
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : (parts[0] ?? '');
 }
 
-/** Read and Reply are about one conversation; the others can cover all from a sender at once. */
-export const coversSender = (action: ActionId) => action !== 'read' && action !== 'reply';
+/** The action that best shows what a swipe does, for its icon and color: Delete, then Archive, then the label actions. */
+export function mainAction(swipe: Swipe): ActionId {
+  const order: ActionId[] = ['delete', 'archive', 'addLabel', 'removeLabel', 'removeAllLabels', 'markRead', 'unsubscribe'];
+  const ids = swipe.actions.map(action => action.id);
+  return order.find(id => ids.includes(id)) ?? ids[0] ?? 'skip';
+}
+
+/** Read and Reply are about one conversation; the other actions can cover all from a sender at once. */
+export const coversSender = (swipe: Swipe) => !swipe.actions.some(action => action.id === 'read' || action.id === 'reply');
 
 export const isUnread = (card: MailCard) => card.labelIds.includes('UNREAD');
 
 /**
- * One modify step that adds labels the card lacks and removes labels it has; asking Gmail to add a label a thread has,
- * or remove one it lacks, would make undo take away or add back a label that was never changed.
+ * What a swipe changes in Gmail. Its label changes merge into one step, which adds only labels the thread lacks and removes
+ * only labels it has, so undo restores it exactly; a label both added and removed (Remove all labels and Add label) is
+ * added. Delete moves it to the Bin after that. Read takes off UNREAD when the read view opens; Reply and Skip change
+ * nothing. Unsubscribe marks read and archives: the request to the sender is not a Gmail change. Remove all labels takes
+ * off only labels the user made, never Gmail's own, such as INBOX, UNREAD or STARRED.
  */
-function modifying(card: MailCard, add: string[], remove: string[]): GmailStep[] {
-  const adding = add.filter(label => !card.labelIds.includes(label));
-  const removing = remove.filter(label => card.labelIds.includes(label));
-  return adding.length || removing.length ? [{ op: 'modify', add: adding, remove: removing }] : [];
-}
-
-/**
- * What a swipe changes in Gmail. Read changes only the UNREAD label, when the read view opens; Reply and Skip change
- * nothing. Unsubscribe archives: the request to the sender is not a Gmail change. Add labels adds its labels and, when
- * set to, archives, but keeps the thread unread, like a pile to go through later. Remove all labels removes only labels
- * the user made, never Gmail's own, such as INBOX, UNREAD or STARRED.
- */
-export function stepsFor(swipe: Swipe, card: MailCard, settings: Settings): GmailStep[] {
-  switch (swipe.action) {
-    case 'addLabels':
-      if (!swipe.labels.length) return [];
-      return modifying(
-        card,
-        swipe.labels.map(label => label.id),
-        swipe.archive ? ['INBOX'] : [],
-      );
-    case 'removeLabel':
-      return modifying(
-        card,
-        [],
-        swipe.labels.map(label => label.id),
-      );
-    case 'removeAllLabels':
-      return modifying(card, [], card.labelIds.filter(isUserLabel));
-    case 'archive':
-    case 'unsubscribe':
-      return modifying(card, [], settings.archiveMarksRead ? ['INBOX', 'UNREAD'] : ['INBOX']);
-    case 'delete':
-      return [{ op: 'trash' }];
-    case 'markRead':
-    case 'read':
-      return modifying(card, [], ['UNREAD']);
-    case 'reply':
-    case 'skip':
-      return [];
+export function stepsFor(swipe: Swipe, card: MailCard): GmailStep[] {
+  const add = new Set<string>();
+  const remove = new Set<string>();
+  let trash = false;
+  for (const action of swipe.actions) {
+    switch (action.id) {
+      case 'markRead':
+      case 'read':
+        remove.add('UNREAD');
+        break;
+      case 'archive':
+        remove.add('INBOX');
+        break;
+      case 'unsubscribe':
+        remove.add('INBOX');
+        remove.add('UNREAD');
+        break;
+      case 'delete':
+        trash = true;
+        break;
+      case 'addLabel':
+        if (action.label) add.add(action.label.id);
+        break;
+      case 'removeLabel':
+        if (action.label) remove.add(action.label.id);
+        break;
+      case 'removeAllLabels':
+        for (const id of card.labelIds.filter(isUserLabel)) remove.add(id);
+        break;
+      case 'reply':
+      case 'skip':
+        break;
+    }
   }
+  for (const id of add) remove.delete(id);
+  const adding = [...add].filter(label => !card.labelIds.includes(label));
+  // Gmail's own labels first, in one fixed order, so a change reads the same whatever order the actions were added in.
+  const systemFirst = ['INBOX', 'UNREAD'];
+  const removing = [
+    ...systemFirst.filter(label => remove.has(label)),
+    ...[...remove].filter(label => !systemFirst.includes(label)),
+  ].filter(label => card.labelIds.includes(label));
+  const steps: GmailStep[] = adding.length || removing.length ? [{ op: 'modify', add: adding, remove: removing }] : [];
+  return trash ? [...steps, { op: 'trash' }] : steps;
 }
 
 /**

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultSwipes, emptyFilters, newPile, swipe, unreadPile } from '../src/core/pile.ts';
+import { defaultSwipes, emptyFilters, newPile, swipeOf, unreadPile } from '../src/core/pile.ts';
 import { defaultSettings, restoreSettings, withCurrentLabels } from '../src/core/settings.ts';
 
 const later = { id: 'Label_1', name: 'Later' };
 const bills = { id: 'Label_2', name: 'Bills' };
+const addLabel = (label: typeof later) => ({ id: 'addLabel' as const, label });
+const removeLabel = (label: typeof later) => ({ id: 'removeLabel' as const, label });
 
 test('missing or broken settings fall back to the Unread pile, the only default', () => {
   assert.deepEqual(restoreSettings(null), defaultSettings);
@@ -14,8 +16,10 @@ test('missing or broken settings fall back to the Unread pile, the only default'
     defaultSettings.piles.map(pile => pile.name),
     ['Unread'],
   );
-  assert.equal(unreadPile.swipes.down.action, 'markRead');
-  assert.equal(newPile('p1', 'Later').swipes.down.action, 'skip', 'piles the user adds skip on down');
+  assert.deepEqual(unreadPile.swipes.right, swipeOf('markRead', 'archive'), 'right marks read and archives');
+  assert.deepEqual(unreadPile.swipes.down, swipeOf('markRead'));
+  assert.deepEqual(newPile('p1', 'Later').swipes.right, swipeOf('markRead', 'archive'));
+  assert.deepEqual(newPile('p1', 'Later').swipes.down, swipeOf('skip'), 'piles the user adds skip on down');
 });
 
 test('a saved pile keeps its filters and swipes; anything invalid falls back', () => {
@@ -48,13 +52,12 @@ test('a saved pile keeps its filters and swipes; anything invalid falls back', (
     name: 'Accounting',
     filters: { ...emptyFilters, where: 'inbox', hasLabels: [later], search: 'older_than:30d' },
     swipes: {
-      right: swipe('removeLabel', [later]),
-      left: swipe('addLabels', [later, bills], false),
+      right: { actions: [removeLabel(later)], allFromSender: false },
+      left: { actions: [addLabel(later), addLabel(bills)], allFromSender: false },
       up: defaultSwipes.up,
       down: defaultSwipes.down,
     },
   });
-  assert.equal(restored.archiveMarksRead, false);
 });
 
 test('settings from before piles become the Unread pile, with its swipes and search; Read is left out', () => {
@@ -69,7 +72,11 @@ test('settings from before piles become the Unread pile, with its swipes and sea
   });
   assert.deepEqual(restored.piles[0], {
     ...unreadPile,
-    swipes: { ...unreadPile.swipes, left: swipe('addLabels', [later], true) },
+    swipes: {
+      ...unreadPile.swipes,
+      right: swipeOf('archive'),
+      left: { actions: [addLabel(later), { id: 'archive' }], allFromSender: false },
+    },
   });
   assert.equal(restored.piles.length, 1);
   assert.equal(restored.loadImages, false);
@@ -77,6 +84,29 @@ test('settings from before piles become the Unread pile, with its swipes and sea
   const custom = restoreSettings({ query: 'in:inbox is:unread category:promotions' });
   assert.deepEqual(custom.piles[0]!.filters, { ...emptyFilters, search: 'in:inbox is:unread category:promotions' });
   assert.deepEqual(custom.piles[0]!.swipes, unreadPile.swipes, 'settings older still start from the default swipes');
+});
+
+test('saved Archive swipes keep marking read while the old setting was on, which it was by default', () => {
+  const pile = (archiveMarksRead?: boolean) =>
+    restoreSettings({ piles: [{ id: 'p', name: 'P', swipes: { right: { action: 'archive' } } }], archiveMarksRead }).piles[0]!;
+  assert.deepEqual(pile().swipes.right, swipeOf('markRead', 'archive'));
+  assert.deepEqual(pile(true).swipes.right, swipeOf('markRead', 'archive'));
+  assert.deepEqual(pile(false).swipes.right, swipeOf('archive'));
+  assert.ok(!('archiveMarksRead' in restoreSettings({ archiveMarksRead: true })), 'the setting itself is gone');
+});
+
+test('a swipe of several actions is restored; each counts once, and Read, Reply or Skip stand alone', () => {
+  const restore = (saved: unknown) =>
+    restoreSettings({ piles: [{ id: 'p', name: 'P', swipes: { right: saved } }] }).piles[0]!.swipes.right;
+  assert.deepEqual(
+    restore({
+      actions: [{ id: 'markRead' }, addLabel(later), addLabel(later), { id: 'addLabel' }, { id: 'archive' }, { id: 'nope' }],
+    }),
+    { actions: [{ id: 'markRead' }, addLabel(later), { id: 'archive' }], allFromSender: false },
+  );
+  assert.deepEqual(restore({ actions: [{ id: 'archive' }, { id: 'reply' }] }), swipeOf('reply'));
+  assert.deepEqual(restore({ actions: [] }), defaultSwipes.right, 'a swipe with no action falls back');
+  assert.deepEqual(restore({ actions: [{ id: 'unsubscribe' }] }), defaultSwipes.right, 'unsubscribe is not a swipe');
 });
 
 test('the dedicated filters are restored when valid, and left empty otherwise', () => {
@@ -103,18 +133,27 @@ test('labels take their current names from Gmail, and a deleted one drops out', 
   const pile = {
     ...newPile('p1', 'Accounting'),
     filters: { ...newPile('p1', 'x').filters, hasLabels: [later], lacksLabels: [bills] },
-    swipes: { ...defaultSwipes, right: swipe('removeLabel', [later]), left: swipe('addLabels', [later, bills]) },
+    swipes: {
+      ...defaultSwipes,
+      right: { actions: [removeLabel(later)], allFromSender: false },
+      left: { actions: [addLabel(later), addLabel(bills), { id: 'archive' as const }], allFromSender: false },
+    },
   };
   const renamed = withCurrentLabels({ ...defaultSettings, piles: [pile] }, [{ id: 'Label_1', name: 'Todo accounting' }]);
   const updated = renamed.piles[0]!;
   assert.deepEqual(updated.filters.hasLabels, [{ id: 'Label_1', name: 'Todo accounting' }]);
   assert.deepEqual(updated.filters.lacksLabels, []);
-  assert.deepEqual(updated.swipes.right, swipe('removeLabel', [{ id: 'Label_1', name: 'Todo accounting' }]));
-  assert.deepEqual(updated.swipes.left, swipe('addLabels', [{ id: 'Label_1', name: 'Todo accounting' }]));
+  const renamedLabel = { id: 'Label_1', name: 'Todo accounting' };
+  assert.deepEqual(updated.swipes.right, { actions: [removeLabel(renamedLabel)], allFromSender: false });
+  assert.deepEqual(
+    updated.swipes.left,
+    { actions: [addLabel(renamedLabel), { id: 'archive' }], allFromSender: false },
+    'the deleted label leaves the swipe',
+  );
 
   const gone = withCurrentLabels({ ...defaultSettings, piles: [pile] }, []).piles[0]!;
-  assert.deepEqual(gone.swipes.right, swipe('skip'), 'a swipe without its label skips');
-  assert.deepEqual(gone.swipes.left, swipe('skip'));
+  assert.deepEqual(gone.swipes.right, swipeOf('skip'), 'a swipe left with no action skips');
+  assert.deepEqual(gone.swipes.left, swipeOf('archive'));
 });
 
 test('a swipe can cover all from the sender, where its action allows', () => {

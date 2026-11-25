@@ -5,20 +5,26 @@ export const directions: readonly Direction[] = ['left', 'down', 'up', 'right'];
 
 /** What the user can do with a conversation. */
 export type ActionId =
-  'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip' | 'addLabels' | 'removeLabel' | 'removeAllLabels' | 'unsubscribe';
+  'markRead' | 'archive' | 'delete' | 'addLabel' | 'removeLabel' | 'removeAllLabels' | 'read' | 'reply' | 'skip' | 'unsubscribe';
 
-/** The actions a swipe can do. Unsubscribe is left out: only some conversations offer it, so it is a button on them. */
+/**
+ * The actions a swipe can do, in the order Settings offers them. Unsubscribe is left out: only some conversations offer
+ * it, so it is a button in the read view.
+ */
 export const gestureActionIds: readonly ActionId[] = [
+  'markRead',
   'archive',
   'delete',
-  'markRead',
+  'addLabel',
+  'removeLabel',
+  'removeAllLabels',
   'read',
   'reply',
   'skip',
-  'addLabels',
-  'removeLabel',
-  'removeAllLabels',
 ];
+
+/** Actions that only work on their own: Read opens the conversation, Reply opens Gmail, Skip does nothing. */
+export const standaloneActionIds: readonly ActionId[] = ['read', 'reply', 'skip'];
 
 /** A Gmail label the user made, such as "Later". */
 export interface GmailLabel {
@@ -57,14 +63,17 @@ export interface MailCard {
 /** One change to a conversation in Gmail. */
 export type GmailStep = { op: 'modify'; add: string[]; remove: string[] } | { op: 'trash' } | { op: 'untrash' };
 
-/** What one swipe does. */
+/** One thing a swipe does. Add label and Remove label name their label. */
+export interface Action {
+  id: ActionId;
+  label?: GmailLabel;
+}
+
+/** What one swipe does: one or more actions, applied together and undone together. */
 export interface Swipe {
-  action: ActionId;
-  /** Add labels: the labels to add, one or more. Remove label: the one label to remove. Empty for other actions. */
-  labels: GmailLabel[];
-  /** Add labels: also take the conversation out of the inbox. */
-  archive: boolean;
-  /** The action also covers the sender's other conversations in the pile, with one undo. */
+  /** Either one action from `standaloneActionIds`, or any number of the others. */
+  actions: Action[];
+  /** The actions also cover the sender's other conversations in the pile, with one undo. */
   allFromSender: boolean;
 }
 
@@ -100,8 +109,6 @@ export interface Pile {
 export interface Settings {
   /** In the picker's order; the app opens on the first. There is always at least one. */
   piles: Pile[];
-  /** Archive also removes UNREAD, so archived mail does not stay unread in All Mail. */
-  archiveMarksRead: boolean;
   /** Remote images in the read view load without asking. */
   loadImages: boolean;
 }

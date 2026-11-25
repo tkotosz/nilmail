@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useReducer, useRef, useState } from 'react';
 import { Inbox, RefreshCw, Settings as SettingsIcon, Share } from 'lucide-react';
-import { actionDone, actionVerb, applySteps, coversSender, isUnread, stepsFor, undoSteps } from '../core/actions.ts';
-import { countFromLabel, pileCount, pileSearch, swipe } from '../core/pile.ts';
+import { actionDone, actionVerb, applySteps, coversSender, mainAction, stepsFor, undoSteps } from '../core/actions.ts';
+import { countFromLabel, pileCount, pileSearch, swipeOf } from '../core/pile.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyChanges, applyToGmail } from '../core/gmail.ts';
 import { withCurrentLabels } from '../core/settings.ts';
 import {
+  type ActionId,
   directions,
   type Direction,
   type GmailStep,
@@ -183,7 +184,7 @@ export function Sorter({
   function openReadView(card: MailCard) {
     setReading(card);
     setCardVersion(version => version + 1);
-    const steps = stepsFor(swipe('read'), card, settings);
+    const steps = stepsFor(swipeOf('read'), card);
     if (!steps.length) return;
     dispatch({ type: 'cardChanged', card: applySteps(card, steps) });
     enqueue(() => applyToGmail(gmail, card.threadId, steps)).then(refreshCounts, error => {
@@ -192,22 +193,25 @@ export function Sorter({
     });
   }
 
-  function decide(card: MailCard, chosen: Swipe) {
-    // Marking a read conversation read would change nothing: the card just moves on.
-    const done = chosen.action === 'markRead' && !isUnread(card) ? swipe('skip') : chosen;
-    const { action } = done;
-    if (action === 'read') return openReadView(card);
-    if (action === 'reply') window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
-    if (action === 'unsubscribe' && card.unsubscribe) {
-      sendUnsubscribe(card.unsubscribe).catch(() =>
+  function decide(card: MailCard, done: Swipe) {
+    const has = (id: ActionId) => done.actions.some(action => action.id === id);
+    // Read, Reply and Skip only come on their own.
+    if (has('read')) return openReadView(card);
+    if (has('reply')) window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
+    const unsubscribing = has('unsubscribe') && card.unsubscribe;
+    if (unsubscribing) {
+      sendUnsubscribe(unsubscribing).catch(() =>
         showToast({ text: 'The unsubscribe request did not reach the sender. Check your connection.', tone: 'error' }),
       );
     }
-    const planned = { card, steps: stepsFor(done, card, settings) };
+    const planned = { card, steps: stepsFor(done, card) };
     const id = nextId.current++;
-    dispatch({ type: 'decided', decision: { id, action, changes: [{ card, undo: undoSteps(planned.steps, card) }] } });
-    const text = action === 'unsubscribe' && card.unsubscribe ? unsubscribeDone[card.unsubscribe.kind] : actionDone(done);
-    const withSender = done.allFromSender && coversSender(action);
+    dispatch({
+      type: 'decided',
+      decision: { id, action: mainAction(done), changes: [{ card, undo: undoSteps(planned.steps, card) }] },
+    });
+    const text = unsubscribing ? unsubscribeDone[unsubscribing.kind] : actionDone(done);
+    const withSender = done.allFromSender && coversSender(done);
     showToast({ text: withSender ? `${text}: finding all from the sender…` : text, tone: 'info', decision: id });
     // The sender's other conversations are found after the swipe, inside the same queued task, so an undo always comes
     // after the changes it undoes.
@@ -216,7 +220,7 @@ export function Sorter({
       if (withSender) {
         try {
           const found = await findFromSender(gmail, search, card);
-          others = found.others.map(item => ({ card: item, steps: stepsFor(done, item, settings) }));
+          others = found.others.map(item => ({ card: item, steps: stepsFor(done, item) }));
         } catch (error) {
           report(error, 'The sender’s other conversations could not be found. ');
         }
@@ -267,7 +271,7 @@ export function Sorter({
 
   const swipeActions: SwipeAction[] = directions.map(direction => {
     const chosen = pile.swipes[direction];
-    return { direction, label: actionVerb(chosen), tone: actionUi[chosen.action].tone };
+    return { direction, label: actionVerb(chosen), tone: actionUi[mainAction(chosen)].tone };
   });
   const count = counts[pile.id];
   const lastDecision = deck.history.at(-1);
@@ -387,7 +391,7 @@ export function Sorter({
       <nav className="action-bar" aria-label="Actions" hidden={!top}>
         {(['left', 'down', 'up', 'right'] as Direction[]).map(direction => {
           const chosen = pile.swipes[direction];
-          const { Icon, tone } = actionUi[chosen.action];
+          const { Icon, tone } = actionUi[mainAction(chosen)];
           return (
             <button
               key={direction}
@@ -425,7 +429,7 @@ export function Sorter({
           onAction={action => {
             const current = deck.cards.find(item => item.threadId === reading.threadId) ?? reading;
             setReading(null);
-            decide(current, swipe(action));
+            decide(current, swipeOf(action));
           }}
         />
       )}

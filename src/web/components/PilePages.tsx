@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Tag, Trash2 } from 'lucide-react';
-import { actionLabels, coversSender } from '../../core/actions.ts';
-import { categoryNames, moreFiltersSummary, pileSummary, swipe } from '../../core/pile.ts';
+import { Plus, Tag, Trash2, X } from 'lucide-react';
+import { actionLabels, coversSender, mainAction } from '../../core/actions.ts';
+import { categoryNames, moreFiltersSummary, pileSummary } from '../../core/pile.ts';
 import {
-  gestureActionIds,
+  standaloneActionIds,
+  type Action,
   type ActionId,
   type Direction,
   type GmailLabel,
@@ -12,7 +13,7 @@ import {
   type Swipe,
 } from '../../core/types.ts';
 import { actionUi, directionArrows, directionNames } from '../action-ui.ts';
-import { BackLink, CheckRow, FieldRow, Group, NavRow, RadioRow, RowIcon, SelectRow, SwitchRow } from './SettingsRows.tsx';
+import { BackLink, CheckRow, FieldRow, Group, NavRow, RowIcon, SelectRow, SwitchRow } from './SettingsRows.tsx';
 
 /** Finds the label of that name (ignoring case, as Gmail does), creating it in Gmail when there is none. */
 export type LabelMaker = (name: string) => Promise<GmailLabel>;
@@ -30,10 +31,14 @@ const names = (labels: GmailLabel[]) => labels.map(label => label.name).join(', 
 
 /** What a swipe does, in words, such as "Delete" or "Add labels: Later, and archive". */
 export function swipeText(chosen: Swipe): string {
-  const sender = chosen.allFromSender && coversSender(chosen.action) ? ', all from the sender' : '';
-  if (chosen.action === 'addLabels') return `Add ${names(chosen.labels)}${chosen.archive ? ', and archive' : ''}${sender}`;
-  if (chosen.action === 'removeLabel') return `Remove ${names(chosen.labels)}${sender}`;
-  return `${actionLabels[chosen.action].verb}${sender}`;
+  const parts = chosen.actions.map(action => {
+    if (action.id === 'addLabel' && action.label) return `add ${action.label.name}`;
+    if (action.id === 'removeLabel' && action.label) return `remove ${action.label.name}`;
+    return actionLabels[action.id].verb.toLowerCase();
+  });
+  if (chosen.allFromSender && coversSender(chosen)) parts.push('all from the sender');
+  const text = parts.join(', ');
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Nothing yet';
 }
 
 function ActionIcon({ action }: { action: ActionId }) {
@@ -208,7 +213,7 @@ function PileMain({
         {gestureOrder.map(direction => (
           <NavRow
             key={direction}
-            icon={<ActionIcon action={pile.swipes[direction].action} />}
+            icon={<ActionIcon action={mainAction(pile.swipes[direction])} />}
             title={`${directionArrows[direction]} ${directionNames[direction]} swipe`}
             label={`${directionNames[direction]} swipe: ${swipeText(pile.swipes[direction])}`}
             value={swipeText(pile.swipes[direction])}
@@ -227,20 +232,16 @@ function PileMain({
   );
 }
 
-/** A swipe switched to `action`: label actions start with a sensible label, which the user can change. */
-function switchedSwipe(action: ActionId, pile: Pile, known: GmailLabel[], previous: Swipe): Swipe {
-  // All from the sender carries over to the new action, where it can apply.
-  const allFromSender = previous.allFromSender && coversSender(action);
-  if (action === 'addLabels') {
-    return { ...swipe(action, previous.action === 'addLabels' ? previous.labels : [], true), allFromSender };
-  }
-  if (action === 'removeLabel') {
-    const first = pile.filters.hasLabels[0] ?? known[0];
-    return { ...swipe(action, first ? [first] : []), allFromSender };
-  }
-  return { ...swipe(action), allFromSender };
-}
+/** Whether two actions are the same: the same kind, and for label actions the same label. */
+const sameAction = (a: Action, b: Action) => a.id === b.id && a.label?.id === b.label?.id;
 
+/** The simple actions the "Add an action" menu offers, with the ones that only work alone marked so. */
+const simpleActions: ActionId[] = ['markRead', 'archive', 'delete', 'removeAllLabels', 'read', 'reply', 'skip'];
+
+/**
+ * A swipe's actions, each removable, and "Add an action": one menu of every action, with Add label and Remove label for
+ * each label. Read, Reply and Skip replace the list; anything added to them replaces them.
+ */
 function SwipePage({
   pile,
   direction,
@@ -257,27 +258,110 @@ function SwipePage({
   onBack(): void;
 }) {
   const current = pile.swipes[direction];
+  const [naming, setNaming] = useState(false);
+  const has = (action: Action) => current.actions.some(item => sameAction(item, action));
+  const set = (actions: Action[]) => {
+    const next = { ...current, actions };
+    onChange({ ...next, allFromSender: next.allFromSender && coversSender(next) });
+  };
+  const add = (action: Action) => {
+    if (has(action)) return;
+    const alone = standaloneActionIds.includes(action.id);
+    set(alone ? [action] : [...current.actions.filter(item => !standaloneActionIds.includes(item.id)), action]);
+  };
   // A pile's own labels come first in Remove label, as removing one is how mail leaves the pile.
   const removable = withChosen(
     [...pile.filters.hasLabels, ...known.filter(label => !pile.filters.hasLabels.some(own => own.id === label.id))],
-    current.action === 'removeLabel' ? current.labels : [],
+    [],
   );
+  const choose = (value: string) => {
+    if (value === 'new-label') return setNaming(true);
+    const [kind, id] = value.split(':') as [string, string | undefined];
+    if (kind === 'add') {
+      const label = known.find(item => item.id === id);
+      if (label) add({ id: 'addLabel', label });
+    } else if (kind === 'remove') {
+      const label = removable.find(item => item.id === id);
+      if (label) add({ id: 'removeLabel', label });
+    } else {
+      add({ id: kind as ActionId });
+    }
+  };
   return (
     <>
       <BackLink title={pile.name || 'Pile'} onClick={onBack} />
-      <Group title={`${directionArrows[direction]} ${directionNames[direction]} swipe`}>
-        {gestureActionIds.map(action => (
-          <RadioRow
-            key={action}
-            name={`swipe-${direction}`}
-            icon={<ActionIcon action={action} />}
-            title={actionLabels[action].verb}
-            checked={current.action === action}
-            onChange={() => onChange(switchedSwipe(action, pile, known, current))}
-          />
+      <Group title={`${directionArrows[direction]} ${directionNames[direction]} swipe does`}>
+        {current.actions.map((action, index) => (
+          <div key={`${action.id}:${action.label?.id ?? ''}`} className="row">
+            <ActionIcon action={action.id} />
+            <span className="row-text">
+              <span className="row-title">{actionLabels[action.id].verb}</span>
+              {action.label && <span className="row-value">{action.label.name}</span>}
+            </span>
+            <button
+              type="button"
+              className="icon-button small"
+              aria-label={`Remove ${actionLabels[action.id].verb}${action.label ? ` ${action.label.name}` : ''}`}
+              onClick={() => set(current.actions.filter((_, at) => at !== index))}
+            >
+              <X size={20} />
+            </button>
+          </div>
         ))}
+        <label className="row add-row">
+          <RowIcon>
+            <Plus size={20} />
+          </RowIcon>
+          <span className="row-title">Add an action</span>
+          <select className="row-select" aria-label="Add an action" value="" onChange={event => choose(event.target.value)}>
+            <option value="" disabled>
+              Add an action
+            </option>
+            {simpleActions
+              .filter(id => !has({ id }))
+              .map(id => (
+                <option key={id} value={id}>
+                  {actionLabels[id].verb}
+                  {standaloneActionIds.includes(id) ? ' (on its own)' : ''}
+                </option>
+              ))}
+            <optgroup label="Add label">
+              {known
+                .filter(label => !has({ id: 'addLabel', label }))
+                .map(label => (
+                  <option key={label.id} value={`add:${label.id}`}>
+                    Add {label.name}
+                  </option>
+                ))}
+              <option value="new-label">New label…</option>
+            </optgroup>
+            {removable.length > 0 && (
+              <optgroup label="Remove label">
+                {removable
+                  .filter(label => !has({ id: 'removeLabel', label }))
+                  .map(label => (
+                    <option key={label.id} value={`remove:${label.id}`}>
+                      Remove {label.name}
+                    </option>
+                  ))}
+              </optgroup>
+            )}
+          </select>
+        </label>
+        {naming && (
+          <NewLabelRow
+            makeLabel={makeLabel}
+            onAdd={label => {
+              add({ id: 'addLabel', label });
+              setNaming(false);
+            }}
+          />
+        )}
       </Group>
-      {coversSender(current.action) && (
+      <p className="group-note">
+        All of them happen with one swipe, and one undo reverses them. Read, Reply and Skip work only on their own.
+      </p>
+      {current.actions.length > 0 && coversSender(current) && (
         <Group>
           <SwitchRow
             title="All from this sender"
@@ -286,53 +370,6 @@ function SwipePage({
             onChange={allFromSender => onChange({ ...current, allFromSender })}
           />
         </Group>
-      )}
-      {current.action === 'addLabels' && (
-        <>
-          <Group title="Labels to add">
-            <LabelChecklist
-              known={known}
-              chosen={current.labels}
-              makeLabel={makeLabel}
-              onChange={labels => onChange({ ...current, labels })}
-            />
-          </Group>
-          <Group>
-            <SwitchRow
-              title="Also archive"
-              value="Files the conversation out of the inbox; read or unread stays as it was."
-              checked={current.archive}
-              onChange={archive => onChange({ ...current, archive })}
-            />
-          </Group>
-        </>
-      )}
-      {current.action === 'removeLabel' && (
-        <Group title="Label to remove">
-          {removable.length ? (
-            removable.map(label => (
-              <RadioRow
-                key={label.id}
-                name={`remove-${direction}`}
-                icon={
-                  <RowIcon>
-                    <Tag size={18} />
-                  </RowIcon>
-                }
-                title={label.name}
-                checked={current.labels[0]?.id === label.id}
-                onChange={() => onChange({ ...current, labels: [label] })}
-              />
-            ))
-          ) : (
-            <div className="row">
-              <span className="row-value">You have no labels yet.</span>
-            </div>
-          )}
-        </Group>
-      )}
-      {current.action === 'removeAllLabels' && (
-        <p className="group-note">Removes every label you made. Inbox, Starred and the categories stay.</p>
       )}
     </>
   );

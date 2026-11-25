@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 /*
  * The building blocks of Settings, in the style of Android's settings: rows in rounded groups. A row shows a title and,
  * below it, its current value. Tapping a row either opens the phone's own menu (SelectRow), toggles it (CheckRow,
- * RadioRow), or opens a page of its own inside Settings (NavRow).
+ * SwitchRow), or opens a page of its own inside Settings (NavRow).
  */
 
 /** A titled group of rows. */
@@ -121,29 +121,6 @@ export function SwitchRow({
         checked={checked}
         onChange={event => onChange(event.target.checked)}
       />
-    </label>
-  );
-}
-
-/** One choice of several, with a radio button at its end. */
-export function RadioRow({
-  name,
-  title,
-  icon,
-  checked,
-  onChange,
-}: {
-  name: string;
-  title: ReactNode;
-  icon?: ReactNode;
-  checked: boolean;
-  onChange(): void;
-}) {
-  return (
-    <label className="row">
-      {icon}
-      <RowText title={title} />
-      <input type="radio" className="row-trailing" name={name} checked={checked} onChange={onChange} />
     </label>
   );
 }

@@ -1,4 +1,4 @@
-import type { Direction, GmailLabel, GmailSearch, Pile, PileFilters, Swipe } from './types.ts';
+import type { ActionId, Direction, GmailLabel, GmailSearch, Pile, PileFilters, Swipe } from './types.ts';
 
 /** Gmail's ids for labels the user made start with this; Gmail's own labels, such as INBOX or STARRED, do not. */
 export const isUserLabel = (id: string) => id.startsWith('Label_');
@@ -99,18 +99,15 @@ export function pileSummary(filters: PileFilters): string {
     .join(' · ');
 }
 
-export const swipe = (action: Swipe['action'], labels: GmailLabel[] = [], archive = true): Swipe => ({
-  action,
-  labels,
-  archive,
-  allFromSender: false,
-});
+/** A swipe of the given actions, none with a label, not covering the sender's other conversations. */
+export const swipeOf = (...ids: ActionId[]): Swipe => ({ actions: ids.map(id => ({ id })), allFromSender: false });
 
-const swipes = (down: Swipe['action']): Record<Direction, Swipe> => ({
-  right: swipe('archive'),
-  left: swipe('delete'),
-  up: swipe('read'),
-  down: swipe(down),
+/** The default swipes: right marks read and archives, left deletes, up reads, and down as given. */
+const swipes = (down: ActionId): Record<Direction, Swipe> => ({
+  right: swipeOf('markRead', 'archive'),
+  left: swipeOf('delete'),
+  up: swipeOf('read'),
+  down: swipeOf(down),
 });
 
 /** Filters that match every conversation outside the Bin and Spam; a pile narrows them. */

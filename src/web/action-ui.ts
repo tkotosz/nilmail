@@ -21,7 +21,7 @@ export const actionUi: Record<ActionId, { Icon: LucideIcon; tone: string }> = {
   read: { Icon: BookOpen, tone: 'blue' },
   reply: { Icon: Reply, tone: 'violet' },
   skip: { Icon: SkipForward, tone: 'gray' },
-  addLabels: { Icon: TagPlus, tone: 'plum' },
+  addLabel: { Icon: TagPlus, tone: 'plum' },
   removeLabel: { Icon: TagX, tone: 'plum' },
   removeAllLabels: { Icon: Tags, tone: 'plum' },
   unsubscribe: { Icon: BellOff, tone: 'orange' },

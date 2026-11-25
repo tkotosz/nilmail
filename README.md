@@ -13,14 +13,14 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.
   - Each tab shows its pile's count: exact where Gmail keeps one (the inbox, or a pile on a single label), otherwise Gmail's estimate, shown as `~120`.
   - Refresh, in the header, starts again from the newest conversation and brings back skipped ones.
-- **Four swipes, four actions, per pile.** Each direction has an action you choose in settings, separately for each pile. The defaults are:
-  - right: Archive (also marks it read)
+- **Four swipes per pile, each with one or more actions.** You set each direction's actions in settings, separately for each pile; one swipe does them all and one undo reverses them. Read, Reply and Skip work only on their own. The defaults are:
+  - right: Mark read + Archive
   - left: Delete (moves it to the Bin)
   - up: Read (opens the whole conversation)
   - down: Mark read in Unread, Skip in piles you add
 
   The same actions are on the buttons under the card and on the arrow keys.
-- **Label actions** move mail between piles: Add labels (one or more, and optionally archive), Remove label, and Remove all labels (only labels you made; Inbox, Starred and the like stay).
+- **Label actions** move mail between piles: Add label and Remove label, each with one label and as many as you like, and Remove all labels (only labels you made; Inbox, Starred and the like stay). For example: Remove label *todo* + Add label *done* + Archive.
 - **All from the sender.** A swipe can be set, in its settings, to cover every conversation from the card's sender in the pile (up to 100), with one undo.
 - **Unsubscribe** is in the read view's top bar when the sender offers it.
 - **The read view** (swipe up) also offers Reply, which opens the conversation in Gmail, and Skip.
