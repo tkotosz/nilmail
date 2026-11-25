@@ -1,24 +1,26 @@
 # nilmail
 
-Sort your Gmail inbox one swipe at a time. nilmail shows your unread inbox conversations as a deck of cards, and every swipe does something in Gmail.
+Sort your Gmail inbox one swipe at a time. nilmail shows your inbox conversations as a deck of cards, unread or read, and every swipe does something in Gmail.
 
 It runs in the browser on a computer and installs as an app on Android. It is a private app: only the Google accounts on its allow-list can sign in.
 
 ## What it does
 
-- **The deck.**
-  - It holds unread inbox conversations, newest first. The Gmail search that fills it can be changed in settings.
+- **Two decks.** The picker in the header switches between them; the app always opens on Unread.
+  - Unread: unread inbox conversations, newest first. The Gmail search that fills it can be changed in settings.
+  - Read: inbox conversations already read, to clear out mail that stayed in the inbox. It loads a few at a time, however large the inbox.
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.
-  - A counter shows how many unread conversations are left in the inbox.
-  - Refresh, in the header, starts again from the newest conversation and brings back skipped ones.
-- **Four swipes, four actions.** Each direction has an action you choose in settings. The defaults are:
+  - The picker shows how many unread and read conversations are in the inbox.
+  - Refresh, next to it, starts again from the newest conversation and brings back skipped ones.
+- **Four swipes, four actions, per deck.** Each direction has an action you choose in settings, separately for each deck. The defaults are:
   - right: Archive (also marks it read)
   - left: Delete (moves it to the Bin)
   - up: Read (opens the whole conversation)
-  - down: Skip (leaves it unread)
+  - down: Mark read in the Unread deck, Skip in the Read deck
 
   The same actions are on the buttons under the card and on the arrow keys.
-- **The remaining actions** without a swipe appear as small buttons on the card: Mark read and Reply by default. Reply opens the conversation in Gmail.
+- **Card buttons.** All from sender applies the next action to every conversation from that sender in the deck. Unsubscribe shows when the sender offers it.
+- **The read view** (swipe up) also offers Reply, which opens the conversation in Gmail, and Skip.
 - **Undo** reverses any of the last 20 actions in Gmail. Use the bar that appears after each action, or Ctrl+Z.
 - **Private by design.** Mail goes straight from Gmail to your device. The server part only renews the sign-in and stores nothing.
 

@@ -538,11 +538,18 @@ svg {
   font-weight: 700;
 }
 .action-button span {
+  /* Up to two lines, so "Mark read" or a long label name fits a phone-wide bar. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   max-width: 100%;
   padding: 0 4px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-wrap: balance;
+  line-height: 1.15;
 }
 .action-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--tone) 8%, white);
@@ -662,6 +669,32 @@ dialog::backdrop {
   font-weight: 750;
   margin-bottom: 8px;
   padding: 0;
+}
+/* Unread | Read: which deck's swipes the form shows. */
+.deck-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--page);
+  border: 1px solid var(--line);
+}
+.deck-switch button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.deck-switch button[aria-checked='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 3px #2a1d1426;
 }
 .gesture-grid {
   display: grid;

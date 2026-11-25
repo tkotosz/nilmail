@@ -1,4 +1,14 @@
-import { directions, gestureActionIds, type ActionId, type Direction, type GmailLabel, type Settings } from './types.ts';
+import {
+  deckKinds,
+  directions,
+  gestureActionIds,
+  type ActionId,
+  type DeckKind,
+  type Direction,
+  type GmailLabel,
+  type Settings,
+  type Swipes,
+} from './types.ts';
 
 export const defaultQuery = 'in:inbox is:unread';
 
@@ -6,12 +16,18 @@ export const defaultQuery = 'in:inbox is:unread';
 export const readQuery = 'in:inbox is:read';
 
 export const defaultSettings: Settings = {
-  gestures: { right: 'archive', left: 'delete', up: 'read', down: 'skip' },
-  labels: {},
+  swipes: {
+    unread: { gestures: { right: 'archive', left: 'delete', up: 'read', down: 'markRead' }, labels: {} },
+    read: { gestures: { right: 'archive', left: 'delete', up: 'read', down: 'skip' }, labels: {} },
+  },
   archiveMarksRead: true,
   loadImages: true,
   query: defaultQuery,
 };
+
+/** The actions a deck's swipes can do: a read conversation has nothing to mark read. */
+export const deckActionIds = (kind: DeckKind): readonly ActionId[] =>
+  kind === 'read' ? gestureActionIds.filter(action => action !== 'markRead') : gestureActionIds;
 
 const isLabel = (value: unknown): value is GmailLabel =>
   typeof value === 'object' &&
@@ -20,16 +36,15 @@ const isLabel = (value: unknown): value is GmailLabel =>
   (value as GmailLabel).id !== '' &&
   typeof (value as GmailLabel).name === 'string';
 
-const isGestureAction = (value: unknown): value is ActionId => gestureActionIds.includes(value as ActionId);
+const asRecord = (value: unknown) => (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
 
-/** Turns saved settings, possibly from an older version or edited by hand, into valid settings. */
-export function restoreSettings(saved: unknown): Settings {
-  const input = (typeof saved === 'object' && saved !== null ? saved : {}) as Partial<Record<keyof Settings, unknown>>;
-  const savedGestures = (typeof input.gestures === 'object' && input.gestures !== null ? input.gestures : {}) as Record<
-    string,
-    unknown
-  >;
-  const savedLabels = (typeof input.labels === 'object' && input.labels !== null ? input.labels : {}) as Record<string, unknown>;
+/** One deck's saved swipes, with anything the deck cannot do replaced by its default. */
+function restoreSwipes(kind: DeckKind, saved: unknown): Swipes {
+  const input = asRecord(saved);
+  const savedGestures = asRecord(input.gestures);
+  const savedLabels = asRecord(input.labels);
+  const defaults = defaultSettings.swipes[kind].gestures;
+  const allowed = deckActionIds(kind);
   const labels: Partial<Record<Direction, GmailLabel>> = {};
   for (const direction of directions) {
     const label = savedLabels[direction];
@@ -37,27 +52,29 @@ export function restoreSettings(saved: unknown): Settings {
   }
   const gestures = Object.fromEntries(
     directions.map(direction => {
-      const value = savedGestures[direction];
+      const value = savedGestures[direction] as ActionId;
       // A label swipe without its label falls back to the default.
-      const valid = isGestureAction(value) && (value !== 'label' || labels[direction]);
-      return [direction, valid ? value : defaultSettings.gestures[direction]];
+      const valid = allowed.includes(value) && (value !== 'label' || labels[direction]);
+      return [direction, valid ? value : defaults[direction]];
     }),
   ) as Record<Direction, ActionId>;
   // Only label swipes keep a label, so a swipe changed to something else forgets it.
   for (const direction of directions) if (gestures[direction] !== 'label') delete labels[direction];
+  return { gestures, labels };
+}
+
+/**
+ * Turns saved settings, possibly from an older version or edited by hand, into valid settings. Settings saved before
+ * each deck had its own swipes keep everything but their swipes, which start from the defaults.
+ */
+export function restoreSettings(saved: unknown): Settings {
+  const input = asRecord(saved);
+  const swipes = asRecord(input.swipes);
   const query = typeof input.query === 'string' ? input.query.trim() : '';
   return {
-    gestures,
-    labels,
+    swipes: Object.fromEntries(deckKinds.map(kind => [kind, restoreSwipes(kind, swipes[kind])])) as Settings['swipes'],
     archiveMarksRead: typeof input.archiveMarksRead === 'boolean' ? input.archiveMarksRead : defaultSettings.archiveMarksRead,
     loadImages: typeof input.loadImages === 'boolean' ? input.loadImages : defaultSettings.loadImages,
     query: query || defaultQuery,
   };
-}
-
-/** The swipe actions no gesture reaches; the card offers them as buttons. */
-export function actionsWithoutGesture(settings: Settings): ActionId[] {
-  const mapped = new Set(Object.values(settings.gestures));
-  // Label needs a label, which only a swipe has.
-  return gestureActionIds.filter(action => action !== 'label' && !mapped.has(action));
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { actionLabels } from '../../core/actions.ts';
-import { defaultQuery, restoreSettings } from '../../core/settings.ts';
-import { gestureActionIds, type Direction, type GmailLabel, type Settings } from '../../core/types.ts';
+import { deckActionIds, defaultQuery, restoreSettings } from '../../core/settings.ts';
+import { deckKinds, type DeckKind, type Direction, type GmailLabel, type Settings, type Swipes } from '../../core/types.ts';
 import { directionArrows, directionNames } from '../action-ui.ts';
 import { problemText, type WebGmail } from '../gmail-http.ts';
 
@@ -11,18 +11,24 @@ const gestureOrder: Direction[] = ['left', 'right', 'up', 'down'];
 /** The label picker's choice that makes a new label. */
 const newLabel = 'new';
 
+const deckNames: Record<DeckKind, string> = { unread: 'Unread', read: 'Read' };
+
+/** Something per deck and direction, such as the label picker's choice. */
+type PerSwipe<Value> = Record<DeckKind, Partial<Record<Direction, Value>>>;
+
 /**
- * The label for each label swipe: the chosen one, with its current name, or one named in the form. A name that matches
- * an existing label (ignoring case, as Gmail does) uses it; any other is created in Gmail. Names are checked before.
+ * The label for each label swipe of one deck: the chosen one, with its current name, or one named in the form. A name
+ * that matches an existing label (ignoring case, as Gmail does) uses it; any other is created in Gmail. Names are checked
+ * before.
  */
 async function resolveLabels(
-  draft: Settings,
+  draft: Swipes,
   choices: Partial<Record<Direction, string>>,
   names: Partial<Record<Direction, string>>,
   known: GmailLabel[],
   createLabel: (name: string) => Promise<GmailLabel>,
-): Promise<Settings['labels']> {
-  const labels: Settings['labels'] = {};
+): Promise<Swipes['labels']> {
+  const labels: Swipes['labels'] = {};
   for (const direction of gestureOrder) {
     if (draft.gestures[direction] !== 'label') continue;
     const choice = choices[direction];
@@ -43,25 +49,31 @@ async function resolveLabels(
 
 export function SettingsForm({
   settings,
+  deckKind,
   email,
   gmail,
   onSave,
   onSignOut,
 }: {
   settings: Settings;
+  /** The deck showing; its swipes are shown first. */
+  deckKind: DeckKind;
   email: string;
   gmail: WebGmail;
   onSave(settings: Settings): void;
   onSignOut(): void;
 }) {
   const [draft, setDraft] = useState(settings);
+  /** Whose swipes the form shows. */
+  const [kind, setKind] = useState(deckKind);
   /** The user's labels, or null while they load. */
   const [labels, setLabels] = useState<GmailLabel[] | null>(null);
   /** Per label swipe: a label id, or `newLabel`. */
-  const [labelChoices, setLabelChoices] = useState<Partial<Record<Direction, string>>>(() =>
-    Object.fromEntries(gestureOrder.map(direction => [direction, settings.labels[direction]?.id])),
-  );
-  const [newNames, setNewNames] = useState<Partial<Record<Direction, string>>>({});
+  const [labelChoices, setLabelChoices] = useState<PerSwipe<string>>(() => ({
+    unread: Object.fromEntries(gestureOrder.map(direction => [direction, settings.swipes.unread.labels[direction]?.id])),
+    read: Object.fromEntries(gestureOrder.map(direction => [direction, settings.swipes.read.labels[direction]?.id])),
+  }));
+  const [newNames, setNewNames] = useState<PerSwipe<string>>({ unread: {}, read: {} });
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -83,27 +95,45 @@ export function SettingsForm({
   const change = <Key extends keyof Settings>(key: Key, value: Settings[Key]) =>
     setDraft(current => ({ ...current, [key]: value }));
 
+  const swipes = draft.swipes[kind];
+  const choices = labelChoices[kind];
+  const names = newNames[kind];
+  const setChoice = (direction: Direction, value: string) =>
+    setLabelChoices(current => ({ ...current, [kind]: { ...current[kind], [direction]: value } }));
+  const setName = (direction: Direction, value: string) =>
+    setNewNames(current => ({ ...current, [kind]: { ...current[kind], [direction]: value } }));
+
   /** The labels a picker offers: the user's, and a saved one Gmail no longer lists, so the choice still shows. */
   const labelOptions = (direction: Direction) => {
-    const saved = settings.labels[direction];
+    const saved = settings.swipes[kind].labels[direction];
     const known = labels ?? [];
     return saved && !known.some(label => label.id === saved.id) ? [saved, ...known] : known;
   };
 
   async function save() {
-    const unnamed = gestureOrder.find(
-      direction =>
-        draft.gestures[direction] === 'label' &&
-        (labelChoices[direction] ?? newLabel) === newLabel &&
-        !newNames[direction]?.trim(),
-    );
-    if (unnamed) return setProblem(`Name the label for the ${directionNames[unnamed].toLowerCase()} swipe.`);
+    for (const deck of deckKinds) {
+      const unnamed = gestureOrder.find(
+        direction =>
+          draft.swipes[deck].gestures[direction] === 'label' &&
+          (labelChoices[deck][direction] ?? newLabel) === newLabel &&
+          !newNames[deck][direction]?.trim(),
+      );
+      if (!unnamed) continue;
+      setKind(deck);
+      return setProblem(`Name the label for the ${directionNames[unnamed].toLowerCase()} swipe of the ${deck} deck.`);
+    }
     setSaving(true);
     setProblem(null);
     try {
       const known = [...(labels ?? [])];
-      const chosen = await resolveLabels(draft, labelChoices, newNames, known, name => gmail.createLabel(name));
-      onSave(restoreSettings({ ...draft, labels: chosen }));
+      const createLabel = (name: string) => gmail.createLabel(name);
+      const swipes = { ...draft.swipes };
+      // One deck after the other, so a new label both decks name is created once.
+      for (const deck of deckKinds) {
+        const chosen = await resolveLabels(draft.swipes[deck], labelChoices[deck], newNames[deck], known, createLabel);
+        swipes[deck] = { ...draft.swipes[deck], labels: chosen };
+      }
+      onSave(restoreSettings({ ...draft, swipes }));
     } catch (error) {
       setProblem(`The label could not be saved. ${problemText(error)}`);
       setSaving(false);
@@ -120,6 +150,22 @@ export function SettingsForm({
     >
       <fieldset>
         <legend>Swipes</legend>
+        <div className="deck-switch" role="radiogroup" aria-label="Swipes for">
+          {deckKinds.map(deck => (
+            <button
+              key={deck}
+              type="button"
+              role="radio"
+              aria-checked={kind === deck}
+              onClick={() => {
+                setKind(deck);
+                setProblem(null);
+              }}
+            >
+              {deckNames[deck]}
+            </button>
+          ))}
+        </div>
         <div className="gesture-grid">
           {gestureOrder.map(direction => (
             <div key={direction} className="gesture-cell">
@@ -128,28 +174,29 @@ export function SettingsForm({
                   <span aria-hidden="true">{directionArrows[direction]}</span> {directionNames[direction]}
                 </span>
                 <select
-                  value={draft.gestures[direction]}
+                  value={swipes.gestures[direction]}
                   onChange={event => {
-                    const action = event.target.value as Settings['gestures'][Direction];
-                    change('gestures', { ...draft.gestures, [direction]: action });
-                    if (action === 'label' && !labelChoices[direction]) {
-                      setLabelChoices(current => ({ ...current, [direction]: labels?.[0]?.id ?? newLabel }));
-                    }
+                    const action = event.target.value as Swipes['gestures'][Direction];
+                    change('swipes', {
+                      ...draft.swipes,
+                      [kind]: { ...swipes, gestures: { ...swipes.gestures, [direction]: action } },
+                    });
+                    if (action === 'label' && !choices[direction]) setChoice(direction, labels?.[0]?.id ?? newLabel);
                   }}
                 >
-                  {gestureActionIds.map(action => (
+                  {deckActionIds(kind).map(action => (
                     <option key={action} value={action}>
                       {actionLabels[action].verb}
                     </option>
                   ))}
                 </select>
               </label>
-              {draft.gestures[direction] === 'label' && (
+              {swipes.gestures[direction] === 'label' && (
                 <>
                   <select
                     aria-label={`${directionNames[direction]} swipe label`}
-                    value={labelChoices[direction] ?? newLabel}
-                    onChange={event => setLabelChoices(current => ({ ...current, [direction]: event.target.value }))}
+                    value={choices[direction] ?? newLabel}
+                    onChange={event => setChoice(direction, event.target.value)}
                   >
                     {labelOptions(direction).map(label => (
                       <option key={label.id} value={label.id}>
@@ -158,14 +205,14 @@ export function SettingsForm({
                     ))}
                     <option value={newLabel}>New label…</option>
                   </select>
-                  {(labelChoices[direction] ?? newLabel) === newLabel && (
+                  {(choices[direction] ?? newLabel) === newLabel && (
                     <input
                       type="text"
                       aria-label={`New label for the ${directionNames[direction].toLowerCase()} swipe`}
                       placeholder="Label name, such as Later"
-                      value={newNames[direction] ?? ''}
+                      value={names[direction] ?? ''}
                       onChange={event => {
-                        setNewNames(current => ({ ...current, [direction]: event.target.value }));
+                        setName(direction, event.target.value);
                         setProblem(null);
                       }}
                     />
@@ -176,8 +223,8 @@ export function SettingsForm({
           ))}
         </div>
         <p className="hint">
-          Actions without a swipe show up as small buttons on the card. A label swipe files the conversation under the label and
-          takes it out of the inbox, still unread.
+          The Unread and Read decks each have their own swipes. Reply and Skip are also in the read view. A label swipe files the
+          conversation under the label and takes it out of the inbox without marking it read.
         </p>
       </fieldset>
 

@@ -39,7 +39,24 @@ after(async () => {
   server?.kill();
 });
 
-async function open(gmail: FakeGmail | null, { width = 390, height = 844, userAgent = undefined as string | undefined } = {}) {
+/** Saved settings where a down swipe skips unread mail too, for tests about skipping. */
+const downSkips = {
+  swipes: {
+    unread: { gestures: { right: 'archive', left: 'delete', up: 'read', down: 'skip' } },
+    read: { gestures: { right: 'archive', left: 'delete', up: 'read', down: 'skip' } },
+  },
+};
+
+async function open(
+  gmail: FakeGmail | null,
+  {
+    width = 390,
+    height = 844,
+    userAgent = undefined as string | undefined,
+    /** Settings saved before the page opens. */
+    settings = undefined as unknown,
+  } = {},
+) {
   const context = await browser.newContext({
     viewport: { width, height },
     locale: 'en-GB',
@@ -47,6 +64,11 @@ async function open(gmail: FakeGmail | null, { width = 390, height = 844, userAg
     hasTouch: Boolean(userAgent),
     ...(userAgent ? { userAgent } : {}),
   });
+  if (settings) {
+    await context.addInitScript(saved => {
+      if (!localStorage.getItem('nilmail.settings.v2')) localStorage.setItem('nilmail.settings.v2', saved);
+    }, JSON.stringify(settings));
+  }
   const page = await context.newPage();
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -143,7 +165,7 @@ test('swiping right archives the newest unread thread, and undo puts it back', a
   await page.context().close();
 });
 
-test('arrow keys and buttons act too: left deletes, Ctrl+Z restores it to the inbox unread, down skips', async () => {
+test('arrow keys and buttons act too: left deletes, Ctrl+Z restores it to the inbox unread, down marks read', async () => {
   const gmail = new FakeGmail(sampleThreads(8));
   const { page, errors } = await open(gmail, { width: 1280, height: 900 });
   await waitForCard(page);
@@ -164,10 +186,14 @@ test('arrow keys and buttons act too: left deletes, Ctrl+Z restores it to the in
   assert.deepEqual(gmail.labels('thread000').toSorted(), ['INBOX', 'UNREAD']);
   assert.equal(await topSubject(page), 'Message number 1');
 
-  await page.locator('.action-bar').getByRole('button', { name: /Skip/ }).click();
-  await page.getByRole('status').filter({ hasText: 'Skipped' }).waitFor();
+  await page
+    .locator('.action-bar')
+    .getByRole('button', { name: /Mark read/ })
+    .click();
+  await page.getByRole('status').filter({ hasText: 'Marked read' }).waitFor();
   assert.equal(await topSubject(page), 'Message number 2');
-  assert.equal(gmail.changes.length, 3, 'skip changes nothing in Gmail');
+  await settle(gmail, 4);
+  assert.deepEqual(gmail.changes[3], { thread: 'thread000', op: 'modify', add: [], remove: ['UNREAD'] });
   assert.deepEqual(errors, []);
   await page.context().close();
 });
@@ -205,18 +231,23 @@ test('swiping up opens the conversation, marks it read, and an action there sort
   await page.context().close();
 });
 
-test('reply opens the conversation in Gmail for the signed-in account', async () => {
+test('cards offer no extra action buttons; reply, from the read view, opens the conversation in Gmail', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   const { page } = await open(gmail);
   await page.context().route('https://mail.google.com/**', route => route.fulfill({ body: 'Gmail' }));
   await waitForCard(page);
-  const [popup] = await Promise.all([
-    page.waitForEvent('popup'),
-    page.locator('.card-extras').getByRole('button', { name: 'Reply' }).click(),
-  ]);
+  assert.deepEqual(
+    (await page.locator('.card-extras button').allTextContents()).map(text => text.trim()),
+    ['All from sender'],
+  );
+  await page.keyboard.press('ArrowUp');
+  const view = page.locator('dialog.read-view');
+  await view.waitFor();
+  const [popup] = await Promise.all([page.waitForEvent('popup'), view.getByRole('button', { name: 'Reply' }).click()]);
   assert.equal(popup.url(), 'https://mail.google.com/mail/?authuser=me%40example.com#all/thread000');
   assert.equal(await topSubject(page), 'Message number 2');
-  assert.equal(gmail.changes.length, 0);
+  await settle(gmail, 1);
+  assert.equal(gmail.changes.length, 1, 'only opening it changed Gmail: it marked it read');
   await page.context().close();
 });
 
@@ -263,7 +294,7 @@ test("Unsubscribe sends the one-click request from the browser and archives; a w
 
 test('All from sender applies one swipe to every unread conversation from the sender, with one undo', async () => {
   const gmail = new FakeGmail(sampleThreads(12));
-  const { page, errors } = await open(gmail);
+  const { page, errors } = await open(gmail, { settings: downSkips });
   await waitForCard(page);
   const toggle = page.getByRole('button', { name: /from sender/ });
   assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
@@ -312,25 +343,37 @@ test('All from sender applies one swipe to every unread conversation from the se
   await page.context().close();
 });
 
-test('settings change what a swipe does, and stay after a reload', async () => {
-  const gmail = new FakeGmail(sampleThreads(4));
+test('each deck has its own swipes in settings, and they stay after a reload', async () => {
+  const threads = sampleThreads(4).map((thread, index) =>
+    index < 2 ? thread : { ...thread, labelIds: thread.labelIds.filter(label => label !== 'UNREAD') },
+  );
+  const gmail = new FakeGmail(threads);
   const { page, errors } = await open(gmail);
   await waitForCard(page);
   await page.getByRole('button', { name: 'Settings' }).click();
-  await page.getByLabel('Left').selectOption('markRead');
+  const unreadTab = page.getByRole('radio', { name: 'Unread', exact: true });
+  assert.equal(await unreadTab.getAttribute('aria-checked'), 'true', 'settings open on the deck that is showing');
+  assert.equal(await page.getByLabel('Down').inputValue(), 'markRead');
+  await page.getByLabel('Left').selectOption('skip');
+  await page.getByRole('radio', { name: 'Read', exact: true }).click();
+  assert.equal(await page.getByLabel('Down').inputValue(), 'skip');
+  assert.ok(!(await page.getByLabel('Left').locator('option').allTextContents()).includes('Mark read'), 'nothing to mark read');
+  await page.getByLabel('Left').selectOption('archive');
   await page.screenshot({ path: `${screenshots}settings.png` });
   await page.getByRole('button', { name: 'Save' }).click();
 
   await page.reload();
   await waitForCard(page);
-  await page
-    .locator('.action-bar')
-    .getByRole('button', { name: /Mark read/ })
-    .waitFor();
-  await page.locator('.card-extras').getByRole('button', { name: 'Delete' }).waitFor();
   await page.keyboard.press('ArrowLeft');
+  await page.getByRole('status').filter({ hasText: 'Skipped' }).waitFor();
+  assert.equal(await topSubject(page), 'Message number 2');
+
+  await page.getByLabel('Conversations to sort').selectOption('read');
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 3');
+  await page.keyboard.press('ArrowLeft');
+  await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
   await settle(gmail, 1);
-  assert.deepEqual(gmail.changes[0], { thread: 'thread000', op: 'modify', add: [], remove: ['UNREAD'] });
+  assert.deepEqual(gmail.changes, [{ thread: 'thread002', op: 'modify', add: [], remove: ['INBOX'] }]);
   assert.deepEqual(errors, []);
   await page.context().close();
 });
@@ -346,7 +389,7 @@ test('a label swipe files the conversation under a new or an existing label, kee
   assert.deepEqual(await downLabel.locator('option').allTextContents(), ['Receipts', 'New label…'], 'only user labels');
   await downLabel.selectOption({ label: 'New label…' });
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.getByText('Name the label for the down swipe.').waitFor();
+  await page.getByText('Name the label for the down swipe of the unread deck.').waitFor();
   await page.getByLabel('New label for the down swipe').fill('Later');
   await page.getByRole('combobox', { name: 'Left', exact: true }).selectOption('label');
   await page.locator('legend', { hasText: 'Swipes' }).scrollIntoViewIfNeeded();
@@ -389,7 +432,7 @@ test('a change Gmail refuses puts the card back with a message', async () => {
 
 test('Refresh starts again from the newest thread, brings back skipped ones, and keeps undo', async () => {
   const gmail = new FakeGmail(sampleThreads(8));
-  const { page, errors } = await open(gmail);
+  const { page, errors } = await open(gmail, { settings: downSkips });
   await waitForCard(page);
   await page.keyboard.press('ArrowRight');
   await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
@@ -415,7 +458,7 @@ test('Refresh starts again from the newest thread, brings back skipped ones, and
   await page.context().close();
 });
 
-test('the picker switches to read conversations, which offer no Mark read, and back; undo still works', async () => {
+test('the picker switches to read conversations, with their own swipes, and back; undo still works', async () => {
   const threads = sampleThreads(6).map((thread, index) =>
     index < 3 ? thread : { ...thread, labelIds: thread.labelIds.filter(label => label !== 'UNREAD') },
   );
@@ -425,11 +468,13 @@ test('the picker switches to read conversations, which offer no Mark read, and b
   assert.equal(await topSubject(page), 'Message number 1', 'the app starts on unread');
   await waitForCount(page, '3 unread');
   await waitForCount(page, '3 read');
-  assert.equal(await page.getByRole('button', { name: 'Mark read' }).count(), 1);
+  const markRead = page.locator('.action-bar').getByRole('button', { name: /Mark read/ });
+  assert.equal(await markRead.count(), 1, 'down marks unread mail read');
 
   await page.getByLabel('Conversations to sort').selectOption('read');
   await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 4');
-  assert.equal(await page.getByRole('button', { name: 'Mark read' }).count(), 0, 'a read card has nothing to mark read');
+  assert.equal(await markRead.count(), 0, 'down skips read mail');
+  await page.locator('.action-bar').getByRole('button', { name: /Skip/ }).waitFor();
   await page.screenshot({ path: `${screenshots}read-deck.png` });
   await page.keyboard.press('ArrowRight');
   await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
@@ -457,7 +502,7 @@ test('the picker switches to read conversations, which offer no Mark read, and b
 
 test('sorting everything ends at inbox zero, and a long inbox keeps loading', async () => {
   const gmail = new FakeGmail(sampleThreads(22));
-  const { page, errors } = await open(gmail);
+  const { page, errors } = await open(gmail, { settings: downSkips });
   await waitForCard(page);
   for (let index = 0; index < 22; index++) {
     await page.waitForFunction(

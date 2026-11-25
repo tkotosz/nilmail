@@ -48,10 +48,21 @@ export interface MailCard {
 /** One change to a conversation in Gmail. */
 export type GmailStep = { op: 'modify'; add: string[]; remove: string[] } | { op: 'trash' } | { op: 'untrash' };
 
-export interface Settings {
+/** Which conversations the deck holds: unread ones (the search from Settings) or read ones in the inbox. */
+export type DeckKind = 'unread' | 'read';
+
+export const deckKinds: readonly DeckKind[] = ['unread', 'read'];
+
+/** What each swipe does in one deck. */
+export interface Swipes {
   gestures: Record<Direction, ActionId>;
   /** The label of each swipe that labels; every direction set to `label` has one. */
   labels: Partial<Record<Direction, GmailLabel>>;
+}
+
+export interface Settings {
+  /** Each deck has its own swipes. */
+  swipes: Record<DeckKind, Swipes>;
   /** Archive also removes UNREAD, so archived mail does not stay unread in All Mail. */
   archiveMarksRead: boolean;
   /** Remote images in the read view load without asking. */

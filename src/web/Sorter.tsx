@@ -3,8 +3,16 @@ import { ChevronDown, Inbox, Layers, RefreshCw, Settings as SettingsIcon, Share 
 import { actionDone, actionVerb, applySteps, coversSender, isUnread, stepsFor, undoSteps } from '../core/actions.ts';
 import { emptyDeck, findFromSender, loadCards, needsCards, reduceDeck, type Decision } from '../core/deck.ts';
 import { applyChanges, applyToGmail } from '../core/gmail.ts';
-import { actionsWithoutGesture, readQuery } from '../core/settings.ts';
-import { directions, type ActionId, type Direction, type GmailLabel, type MailCard, type Settings } from '../core/types.ts';
+import { readQuery } from '../core/settings.ts';
+import {
+  directions,
+  type ActionId,
+  type DeckKind,
+  type Direction,
+  type GmailLabel,
+  type MailCard,
+  type Settings,
+} from '../core/types.ts';
 import { actionUi, directionArrows, keyDirections } from './action-ui.ts';
 import { InstallButton } from './components/InstallButton.tsx';
 import { MailCardView, NoDrag } from './components/MailCardView.tsx';
@@ -31,9 +39,6 @@ const toastTime = { info: 5000, error: 8000 };
 
 /** "All from this sender" for the card `threadId`: looking up the sender's other conversations, or holding them. */
 type SenderChoice = { threadId: string; others: null } | { threadId: string; others: MailCard[]; more: boolean };
-
-/** Which conversations the deck holds: unread ones (the search from Settings) or read ones in the inbox. */
-type DeckKind = 'unread' | 'read';
 
 const numbers = new Intl.NumberFormat('en-US');
 const countLabel = (count: number | undefined, kind: DeckKind) =>
@@ -72,6 +77,7 @@ export function Sorter({
   const generation = useRef(0);
 
   const query = deckKind === 'read' ? readQuery : settings.query;
+  const swipes = settings.swipes[deckKind];
   const top = deck.cards[0];
   const next = deck.cards[1];
   /** The choice only holds for the card it was made on. */
@@ -231,14 +237,9 @@ export function Sorter({
   const swipeActions: SwipeAction[] = findingSender
     ? []
     : directions.map(direction => {
-        const action = settings.gestures[direction];
-        return { direction, label: verb(action, settings.labels[direction]), tone: actionUi[action].tone };
+        const action = swipes.gestures[direction];
+        return { direction, label: verb(action, swipes.labels[direction]), tone: actionUi[action].tone };
       });
-  const extraActions: ActionId[] = [
-    // A read conversation has nothing to mark read.
-    ...actionsWithoutGesture(settings).filter(action => action !== 'markRead' || (top && isUnread(top))),
-    ...(top?.unsubscribe ? ['unsubscribe' as const] : []),
-  ];
   const lastDecision = deck.history.at(-1);
   const waiting = deck.loading || (deck.more && !loadProblem);
 
@@ -296,7 +297,7 @@ export function Sorter({
               key={`${top.threadId}:${cardVersion}`}
               ref={card}
               actions={swipeActions}
-              onAction={direction => decide(top, settings.gestures[direction], settings.labels[direction])}
+              onAction={direction => decide(top, swipes.gestures[direction], swipes.labels[direction])}
             >
               <MailCardView card={top}>
                 <NoDrag className="card-extras">
@@ -315,20 +316,16 @@ export function Sorter({
                           : 'No others from sender'
                         : 'All from sender'}
                   </button>
-                  {extraActions.map(action => {
-                    const { Icon, tone } = actionUi[action];
-                    return (
-                      <button
-                        key={action}
-                        type="button"
-                        className={`chip-button tone-${tone}`}
-                        disabled={findingSender}
-                        onClick={() => decide(top, action)}
-                      >
-                        <Icon size={15} aria-hidden="true" /> {verb(action)}
-                      </button>
-                    );
-                  })}
+                  {top.unsubscribe && (
+                    <button
+                      type="button"
+                      className={`chip-button tone-${actionUi.unsubscribe.tone}`}
+                      disabled={findingSender}
+                      onClick={() => decide(top, 'unsubscribe')}
+                    >
+                      <actionUi.unsubscribe.Icon size={15} aria-hidden="true" /> {verb('unsubscribe')}
+                    </button>
+                  )}
                 </NoDrag>
               </MailCardView>
             </SwipeCard>
@@ -368,7 +365,7 @@ export function Sorter({
 
       <nav className="action-bar" aria-label="Actions" hidden={!top}>
         {(['left', 'down', 'up', 'right'] as Direction[]).map(direction => {
-          const action = settings.gestures[direction];
+          const action = swipes.gestures[direction];
           const { Icon, tone } = actionUi[action];
           return (
             <button
@@ -379,7 +376,7 @@ export function Sorter({
               onClick={() => void card.current?.swipe(direction)}
             >
               <Icon size={22} aria-hidden="true" />
-              <span>{verb(action, settings.labels[direction])}</span>
+              <span>{verb(action, swipes.labels[direction])}</span>
               <kbd aria-hidden="true">{directionArrows[direction]}</kbd>
             </button>
           );
@@ -415,6 +412,7 @@ export function Sorter({
         <Modal name="Settings" className="settings-dialog" onClose={() => setDialog(null)}>
           <SettingsForm
             settings={settings}
+            deckKind={deckKind}
             email={email}
             gmail={gmail}
             onSignOut={onSignOut}
