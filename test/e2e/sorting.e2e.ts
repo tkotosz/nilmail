@@ -5,7 +5,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { chromium, type Browser, type Page } from 'playwright-core';
-import { FakeGmail, newsletterHtml, sampleThreads } from './fake-gmail.ts';
+import { FakeGmail, githubHtml, newsletterHtml, sampleThreads } from './fake-gmail.ts';
 
 const port = 4199;
 const base = `http://127.0.0.1:${port}/`;
@@ -265,6 +265,61 @@ test('swiping up opens the conversation, marks it read, and an action there sort
   await page.context().close();
 });
 
+test('a table of small icons keeps its columns, and the email gets nearly the full width', async () => {
+  const threads = sampleThreads(1);
+  threads[0]!.html = githubHtml;
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  await page.keyboard.press('ArrowUp');
+  const frame = page.frameLocator('.message-frame');
+  await frame.getByText('Failed in 27 seconds').waitFor();
+  const look = await page.locator('.message-frame').evaluate((element: HTMLIFrameElement) => {
+    const doc = element.contentDocument!;
+    const status = [...doc.querySelectorAll('th')].find(th => th.textContent === 'Status')!;
+    return {
+      frame: element.getBoundingClientRect().width,
+      icon: doc.querySelector('img.status')!.getBoundingClientRect().width,
+      header: status.getBoundingClientRect().height,
+    };
+  });
+  assert.ok(look.frame >= 360, `the email uses nearly the full width of a 390px phone, not ${look.frame}px`);
+  assert.equal(look.icon, 24, 'status icons keep their size');
+  assert.ok(look.header < 40, `the Status header stays on one line, not ${look.header}px tall`);
+  await page.screenshot({ path: `${screenshots}github.png`, animations: 'disabled' });
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
+test('an email shows before its pictures arrive, and grows when they do', async () => {
+  const threads = sampleThreads(1);
+  threads[0]!.html = '<p>Text first.</p><img src="https://img.example.com/slow.png" width="300"><p>After the picture.</p>';
+  const gmail = new FakeGmail(threads);
+  const { page, errors } = await open(gmail);
+  let release = () => {};
+  const arrived = new Promise<void>(resolve => (release = resolve));
+  await page.context().route('https://img.example.com/**', async route => {
+    await arrived;
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    await route.fulfill({ body: Buffer.from(png, 'base64'), contentType: 'image/png' });
+  });
+  await waitForCard(page);
+  await page.keyboard.press('ArrowUp');
+  const frame = page.locator('.message-frame');
+  await page.waitForFunction(
+    () => (document.querySelector('.message-frame') as HTMLElement | null)?.style.visibility === 'visible',
+    null,
+    {
+      timeout: 3000,
+    },
+  );
+  const before = await frame.evaluate(element => element.clientHeight);
+  release();
+  await page.waitForFunction(height => (document.querySelector('.message-frame') as HTMLElement).clientHeight > height, before);
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('a long email scrolls in the read view by touch, on the email itself too', async () => {
   const threads = sampleThreads(2);
   threads[0]!.html = Array.from({ length: 60 }, (_, index) => `<p>Paragraph ${index + 1} of a long email.</p>`).join('');
@@ -321,7 +376,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         bannerText: style(cell('Még mindig')).color,
       };
     });
-    assert.ok(look.zoom > 0.5 && look.zoom < 0.6, `a 604px email in a 342px frame zooms to about 0.55, not ${look.zoom}`);
+    assert.ok(look.zoom > 0.55 && look.zoom < 0.65, `a 604px email in a 366px frame zooms to about 0.6, not ${look.zoom}`);
     assert.equal(look.banner, 'rgb(14, 23, 53)', 'the dark banner keeps its color');
     assert.equal(look.bannerText, 'rgb(255, 255, 255)');
     if (colorScheme === 'dark') {

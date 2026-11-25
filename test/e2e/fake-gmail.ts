@@ -40,6 +40,20 @@ export const newsletterHtml = `<table role="presentation" width="600" style="wid
 <tr><td colspan="2" style="background:#0e1735;padding:40px;font:bold 44px Arial;color:#ffffff;text-align:center">Még mindig várnak rád a Black Friday hetek ajánlatai!</td></tr>
 </table>`;
 
+const dot = (color: string) =>
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="12" fill="${color}"/></svg>`,
+  );
+/** A notification built like GitHub's: a full-width table whose Status column holds only 24px icons. */
+export const githubHtml = `<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto"><tr><td style="padding:16px">
+<table width="100%" style="border:1px solid #d0d7de;border-radius:6px;border-collapse:separate"><tr><td align="center" style="padding:24px;font:24px Arial">CI: Some jobs were not successful<br><br><a href="https://example.com" style="background:#1f883d;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;font-size:16px">View workflow run</a></td></tr>
+<tr><td style="border-top:1px solid #d0d7de;padding:16px"><table width="100%" style="font:16px Arial">
+<tr><th align="left" style="padding:8px">Status</th><th align="left" style="padding:8px">Job</th><th align="left" style="padding:8px">Annotations</th></tr>
+<tr><td style="padding:8px"><img class="status" src="${dot('#1a7f37')}" width="24" height="24" alt="Succeeded"></td><td style="padding:8px"><b>CI</b> / Browser tests<br>Succeeded in 2 minutes and 46 seconds</td><td></td></tr>
+<tr><td style="padding:8px"><img class="status" src="${dot('#cf222e')}" width="24" height="24" alt="Failed"></td><td style="padding:8px"><b>CI</b> / Lint, build and unit tests<br>Failed in 27 seconds</td><td style="padding:8px">3</td></tr>
+</table></td></tr></table></td></tr></table>`;
+
 export function sampleThreads(count: number, start = Date.UTC(2026, 10, 21, 9)): FakeThread[] {
   const senders = [
     'Anna Kovács <anna@example.com>',

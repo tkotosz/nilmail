@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ImageOff } from 'lucide-react';
 import { darkenEmail } from '../email-dark.ts';
 
@@ -12,7 +12,7 @@ function frameDocument(html: string, images: boolean): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imageSources}; style-src 'unsafe-inline' https: http:; font-src https: http: data:">
 <meta name="referrer" content="no-referrer">
 <base target="_blank">
-<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:break-word;padding:2px}img:not(table img){max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
 </head><body>${html}</body></html>`;
 }
 
@@ -24,26 +24,51 @@ const hasRemoteImages = (html: string) => /<img[^>]+src\s*=\s*["']?https?:|url\(
  * newsletter out to fit, and darken it in the dark theme; without scripts the email cannot use that access.
  */
 function HtmlFrame({ html, images }: { html: string; images: boolean }) {
+  const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(120);
-  const fit = useCallback((frame: HTMLIFrameElement) => {
-    const doc = frame.contentDocument;
-    if (!doc?.body) return;
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) darkenEmail(doc);
-    doc.body.style.zoom = '';
-    // The frame hides its overflow, so the page's own width is the frame's; the body's width is the email's.
-    const wide = Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth);
-    const room = frame.clientWidth;
-    if (wide > room + 2) doc.body.style.zoom = String(room / wide);
-    setHeight(Math.ceil(doc.documentElement.getBoundingClientRect().height) + 4);
-  }, []);
+  /** Hidden until zoomed and darkened, so the raw email never flashes up. */
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const element = frame.current;
+    if (!element) return;
+    let waiting = 0;
+    let observer: ResizeObserver | undefined;
+    const measure = (doc: Document) => setHeight(Math.ceil(doc.documentElement.getBoundingClientRect().height) + 4);
+    // Runs as soon as the email's text is parsed, not after every picture has downloaded, which can take seconds.
+    const prepare = () => {
+      const doc = element.contentDocument;
+      // The frame starts on an empty page; the email's own document comes from `srcdoc`.
+      if (!doc || doc.URL !== 'about:srcdoc' || doc.readyState === 'loading' || !doc.body) {
+        waiting = requestAnimationFrame(prepare);
+        return;
+      }
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) darkenEmail(doc);
+      // The frame hides its overflow, so the page's own width is the frame's; the body's width is the email's.
+      const wide = Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth);
+      const room = element.clientWidth;
+      if (wide > room + 2) doc.body.style.zoom = String(room / wide);
+      measure(doc);
+      setReady(true);
+      // Pictures arriving later make the email taller.
+      observer = new ResizeObserver(() => measure(doc));
+      observer.observe(doc.body);
+    };
+    waiting = requestAnimationFrame(prepare);
+    return () => {
+      cancelAnimationFrame(waiting);
+      observer?.disconnect();
+    };
+  }, [html, images]);
+
   return (
     <iframe
+      ref={frame}
       className="message-frame"
       title="Email content"
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       srcDoc={frameDocument(html, images)}
-      style={{ height }}
-      onLoad={event => fit(event.currentTarget)}
+      style={{ height, visibility: ready ? 'visible' : 'hidden' }}
     />
   );
 }

@@ -1562,9 +1562,13 @@ label.row:has(.row-select:focus-visible)::before {
   margin: 0;
   overflow-wrap: anywhere;
 }
-/* Email bodies are designed for white; in the dark theme the page darkens them as Gmail does (see email-dark.ts). */
+/*
+ * Email bodies are designed for white; in the dark theme the page darkens them as Gmail does (see email-dark.ts). The
+ * frame reaches the message's edges, as Gmail gives an email nearly the screen's width.
+ */
 .message-frame {
-  width: 100%;
+  width: calc(100% + 32px);
+  margin: 0 -16px;
   border: 0;
   display: block;
   background: #fff;

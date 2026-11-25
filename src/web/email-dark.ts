@@ -70,26 +70,31 @@ export function lightText(color: Rgba): string | null {
   return luminance(color) < 0.2 ? withLightness(color, Math.max(0.72, 0.9 - lightness(color) * 0.8)) : null;
 }
 
-/** Darkens every element of the email's document in place. */
+/**
+ * Darkens every element of the email's document in place. All colors are read first and written after, so the browser
+ * works out the styles once instead of after every change.
+ */
 export function darkenEmail(doc: Document): void {
   const view = doc.defaultView;
   if (!view) return;
+  const changes: { element: HTMLElement; property: string; value: string }[] = [];
   for (const element of [doc.documentElement, ...doc.querySelectorAll<HTMLElement>('body, body *')]) {
     if (!(element instanceof view.HTMLElement) || element instanceof view.HTMLImageElement) continue;
     const style = view.getComputedStyle(element);
     const background = parseColor(style.backgroundColor);
     if (background && background.a > 0 && style.backgroundImage === 'none') {
       const dark = darkBackground(background);
-      if (dark) element.style.setProperty('background-color', dark, 'important');
+      if (dark) changes.push({ element, property: 'background-color', value: dark });
     }
     const text = parseColor(style.color);
     const light = text && lightText(text);
-    if (light) element.style.setProperty('color', light, 'important');
+    if (light) changes.push({ element, property: 'color', value: light });
     for (const side of ['top', 'right', 'bottom', 'left'] as const) {
       if (style.getPropertyValue(`border-${side}-style`) === 'none') continue;
       const border = parseColor(style.getPropertyValue(`border-${side}-color`));
       const lighter = border && lightText(border);
-      if (lighter) element.style.setProperty(`border-${side}-color`, lighter, 'important');
+      if (lighter) changes.push({ element, property: `border-${side}-color`, value: lighter });
     }
   }
+  for (const { element, property, value } of changes) element.style.setProperty(property, value, 'important');
 }
