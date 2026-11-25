@@ -176,7 +176,6 @@ export function SettingsForm({
               onMove={movePile}
               onAdd={addPile}
             />
-            <p className="group-note">The picker in the header lists the piles in this order, and nilmail opens on the first.</p>
             <Group title="Mail">
               <SwitchRow
                 title="Archive also marks as read"
