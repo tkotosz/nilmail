@@ -5,7 +5,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { chromium, type Browser, type Page } from 'playwright-core';
-import { FakeGmail, sampleThreads } from './fake-gmail.ts';
+import { FakeGmail, newsletterHtml, sampleThreads } from './fake-gmail.ts';
 
 const port = 4199;
 const base = `http://127.0.0.1:${port}/`;
@@ -294,6 +294,48 @@ test('a long email scrolls in the read view by touch, on the email itself too', 
   assert.deepEqual(errors, []);
   await page.context().close();
 });
+
+for (const colorScheme of ['light', 'dark'] as const) {
+  test(`a wide newsletter zooms out to fit; in dark it darkens as Gmail does (${colorScheme})`, async () => {
+    const threads = sampleThreads(1);
+    threads[0]!.html = newsletterHtml;
+    const gmail = new FakeGmail(threads);
+    const { page, errors } = await open(gmail, { colorScheme });
+    await waitForCard(page);
+    await page.keyboard.press('ArrowUp');
+    const frame = page.frameLocator('.message-frame');
+    await frame.getByText('Még mindig').waitFor();
+    await page.waitForFunction(() => {
+      const body = (document.querySelector('.message-frame') as HTMLIFrameElement | null)?.contentDocument?.body;
+      return Boolean(body?.style.zoom);
+    });
+    const look = await page.locator('.message-frame').evaluate((element: HTMLIFrameElement) => {
+      const doc = element.contentDocument!;
+      const cell = (text: string) => [...doc.querySelectorAll('td')].find(td => td.textContent?.includes(text))!;
+      const style = (td: HTMLElement) => getComputedStyle(td);
+      return {
+        zoom: Number(doc.body.style.zoom),
+        light: style(cell('Kék tagok')).backgroundColor,
+        lightText: style(cell('Kék tagok')).color,
+        banner: style(cell('Még mindig')).backgroundColor,
+        bannerText: style(cell('Még mindig')).color,
+      };
+    });
+    assert.ok(look.zoom > 0.5 && look.zoom < 0.6, `a 604px email in a 342px frame zooms to about 0.55, not ${look.zoom}`);
+    assert.equal(look.banner, 'rgb(14, 23, 53)', 'the dark banner keeps its color');
+    assert.equal(look.bannerText, 'rgb(255, 255, 255)');
+    if (colorScheme === 'dark') {
+      assert.equal(look.light, 'rgb(35, 35, 35)', 'a light cell turns dark');
+      assert.equal(look.lightText, 'rgb(230, 230, 230)', 'its black text turns light');
+    } else {
+      assert.equal(look.light, 'rgb(244, 244, 244)');
+      assert.equal(look.lightText, 'rgb(0, 0, 0)');
+    }
+    await page.screenshot({ path: `${screenshots}newsletter-${colorScheme}.png`, animations: 'disabled' });
+    assert.deepEqual(errors, []);
+    await page.context().close();
+  });
+}
 
 test('cards offer no extra action buttons; reply, from the read view, opens the conversation in Gmail', async () => {
   const gmail = new FakeGmail(sampleThreads(3));

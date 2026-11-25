@@ -1,10 +1,10 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { ImageOff } from 'lucide-react';
+import { darkenEmail } from '../email-dark.ts';
 
 /**
  * The frame's own rules: nothing loads except styles, fonts and (when allowed) images; no scripts run (the sandbox also
- * forbids them); links open outside the app. In the dark theme the page inverts the whole frame, as Gmail darkens
- * emails; pictures are inverted once more here, so they keep their own colors.
+ * forbids them); links open outside the app.
  */
 function frameDocument(html: string, images: boolean): string {
   const imageSources = images ? 'https: http: data:' : 'data:';
@@ -12,8 +12,7 @@ function frameDocument(html: string, images: boolean): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imageSources}; style-src 'unsafe-inline' https: http:; font-src https: http: data:">
 <meta name="referrer" content="no-referrer">
 <base target="_blank">
-<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}
-@media (prefers-color-scheme:dark){img,picture,video,svg,[background],[style*="background-image"]{filter:invert(1) hue-rotate(180deg)}}</style>
+<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
 </head><body>${html}</body></html>`;
 }
 
@@ -21,16 +20,18 @@ function frameDocument(html: string, images: boolean): string {
 const hasRemoteImages = (html: string) => /<img[^>]+src\s*=\s*["']?https?:|url\(\s*["']?https?:/i.test(html);
 
 /**
- * An HTML email in a sandboxed frame. The frame shares the page's origin only so the page can size it to its content;
- * without scripts the email cannot use that. Wide newsletters are zoomed out to fit.
+ * An HTML email in a sandboxed frame. The frame shares the page's origin only so the page can size it, zoom a wide
+ * newsletter out to fit, and darken it in the dark theme; without scripts the email cannot use that access.
  */
 function HtmlFrame({ html, images }: { html: string; images: boolean }) {
   const [height, setHeight] = useState(120);
   const fit = useCallback((frame: HTMLIFrameElement) => {
     const doc = frame.contentDocument;
     if (!doc?.body) return;
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) darkenEmail(doc);
     doc.body.style.zoom = '';
-    const wide = doc.documentElement.scrollWidth;
+    // The frame hides its overflow, so the page's own width is the frame's; the body's width is the email's.
+    const wide = Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth);
     const room = frame.clientWidth;
     if (wide > room + 2) doc.body.style.zoom = String(room / wide);
     setHeight(Math.ceil(doc.documentElement.getBoundingClientRect().height) + 4);

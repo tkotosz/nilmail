@@ -27,6 +27,19 @@ const cors = {
 
 const base64Url = (text: string) => Buffer.from(text, 'utf8').toString('base64url');
 
+const logo =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="560" height="90"><rect width="560" height="90" fill="#fff"/><text x="40" y="60" font-family="Arial" font-weight="bold" font-size="40" fill="#000">SAMSUNG</text></svg>',
+  );
+/** A newsletter built like many real ones: a fixed 600px table, a logo picture, light cells and a dark banner. */
+export const newsletterHtml = `<table role="presentation" width="600" style="width:600px;margin:0 auto;border-collapse:collapse" cellpadding="0" cellspacing="0">
+<tr><td style="background:#ffffff;padding:20px;font:13px Arial;color:#555">Csapj le a Black Friday hetek ajánlataira!</td><td style="background:#ffffff;padding:20px;font:13px Arial;text-align:right"><a href="https://example.com" style="color:#555">Online megtekintés</a></td></tr>
+<tr><td colspan="2"><img src="${logo}" width="600" alt="Samsung"></td></tr>
+<tr><td style="background:#f4f4f4;padding:30px;font:16px Arial;color:#000"><b>Samsung hűségprogram</b><br>Te már a(z) Kék tagok közé tartozol!</td><td style="background:#f4f4f4;padding:30px;font:bold 16px Arial;color:#000;border-left:2px solid #000">Gyűjts Samsung hűségprogram pontokat minden alkalommal!</td></tr>
+<tr><td colspan="2" style="background:#0e1735;padding:40px;font:bold 44px Arial;color:#ffffff;text-align:center">Még mindig várnak rád a Black Friday hetek ajánlatai!</td></tr>
+</table>`;
+
 export function sampleThreads(count: number, start = Date.UTC(2026, 10, 21, 9)): FakeThread[] {
   const senders = [
     'Anna Kovács <anna@example.com>',

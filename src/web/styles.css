@@ -1562,8 +1562,7 @@ label.row:has(.row-select:focus-visible)::before {
   margin: 0;
   overflow-wrap: anywhere;
 }
-/* Email bodies are designed for white. In the dark theme the frame is inverted, as Gmail darkens emails, toned so its
-   background meets the message's container; the frame inverts its pictures back. */
+/* Email bodies are designed for white; in the dark theme the page darkens them as Gmail does (see email-dark.ts). */
 .message-frame {
   width: 100%;
   border: 0;
@@ -1572,7 +1571,7 @@ label.row:has(.row-select:focus-visible)::before {
 }
 @media (prefers-color-scheme: dark) {
   .message-frame {
-    filter: invert(1) hue-rotate(180deg) contrast(0.8);
+    background: transparent;
   }
 }
 .message-text {
