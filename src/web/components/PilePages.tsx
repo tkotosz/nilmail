@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ChevronRight, Plus, Tag, Trash2, X } from 'lucide-react';
-import { actionLabels, coversSender, mainAction } from '../../core/actions.ts';
+import { actionLabels, actionVerb, coversSender, mainAction } from '../../core/actions.ts';
 import { categoryNames, moreFiltersSummary, pileSummary } from '../../core/pile.ts';
+import { swipeNameLimit } from '../../core/settings.ts';
 import {
   standaloneActionIds,
   type Action,
@@ -58,7 +59,8 @@ export function swipeText(chosen: Swipe): string {
   });
   if (chosen.allFromSender && coversSender(chosen)) parts.push('all from the sender');
   const text = parts.join(', ');
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Nothing yet';
+  const actions = text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Nothing yet';
+  return chosen.name.trim() ? `${chosen.name.trim()} · ${actions}` : actions;
 }
 
 function ActionIcon({ action }: { action: ActionId }) {
@@ -280,6 +282,20 @@ function SwipePage({
   };
   return (
     <>
+      <Group>
+        <FieldRow label="Name">
+          <input
+            type="text"
+            value={current.name}
+            maxLength={swipeNameLimit}
+            placeholder={`Optional, such as ${actionVerb({ ...current, name: '' })}`}
+            onChange={event => onChange({ ...current, name: event.target.value })}
+          />
+        </FieldRow>
+      </Group>
+      <p className="group-note">
+        The name shows on the swipe's button and while you swipe; without one, the button names the actions.
+      </p>
       <Group title="Does">
         {current.actions.map((action, index) => (
           <div key={`${action.id}:${action.label?.id ?? ''}`} className="row">

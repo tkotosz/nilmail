@@ -28,6 +28,8 @@ function shortName(action: Action): string {
  * as "Archive +1" for Mark read and Archive; " all" when it covers the sender. Settings lists every action.
  */
 export function actionVerb(swipe: Swipe): string {
+  // A name the user gave the swipe says it best.
+  if (swipe.name.trim()) return swipe.name.trim();
   const main = mainAction(swipe);
   const shown = swipe.actions.find(action => action.id === main) ?? swipe.actions[0];
   const more = swipe.actions.length - 1;

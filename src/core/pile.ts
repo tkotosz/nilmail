@@ -100,7 +100,7 @@ export function pileSummary(filters: PileFilters): string {
 }
 
 /** A swipe of the given actions, none with a label, not covering the sender's other conversations. */
-export const swipeOf = (...ids: ActionId[]): Swipe => ({ actions: ids.map(id => ({ id })), allFromSender: false });
+export const swipeOf = (...ids: ActionId[]): Swipe => ({ actions: ids.map(id => ({ id })), allFromSender: false, name: '' });
 
 /** The default swipes: right marks read and archives, left deletes, up reads, and down as given. */
 const swipes = (down: ActionId): Record<Direction, Swipe> => ({

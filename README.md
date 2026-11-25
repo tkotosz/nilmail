@@ -13,7 +13,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.
   - Each tab shows its pile's count: exact where Gmail keeps one (the inbox, or a pile on a single label), otherwise Gmail's estimate, shown as `~120`.
   - Refresh, in the header, starts again from the newest conversation and brings back skipped ones.
-- **Four swipes per pile, each with one or more actions.** You set each direction's actions in settings, separately for each pile; one swipe does them all and one undo reverses them. Read, Reply and Skip work only on their own. The defaults are:
+- **Four swipes per pile, each with one or more actions.** You set each direction's actions in settings, separately for each pile; one swipe does them all and one undo reverses them. Read, Reply and Skip work only on their own. A swipe can have a name, which its button shows. The defaults are:
   - right: Mark read + Archive
   - left: Delete (moves it to the Bin)
   - up: Read (opens the whole conversation)

@@ -17,7 +17,7 @@ const card = (labelIds: string[]): MailCard => ({
 });
 const later: GmailLabel = { id: 'Label_1', name: 'Later' };
 const bills: GmailLabel = { id: 'Label_2', name: 'Bills' };
-const withLabels = (...actions: Swipe['actions']): Swipe => ({ actions, allFromSender: false });
+const withLabels = (...actions: Swipe['actions']): Swipe => ({ actions, allFromSender: false, name: '' });
 
 test("a swipe's actions merge into one change, which undo reverses exactly", () => {
   const unread = card(['INBOX', 'UNREAD', 'CATEGORY_UPDATES']);
@@ -110,6 +110,12 @@ test('buttons name the main action and count the rest; the message after a swipe
     'Marked read, labeled Later and archived',
   );
   assert.equal(actionDone(withLabels({ id: 'removeLabel', label: later })), 'Removed Later');
+});
+
+test('a named swipe shows its name on the button, whatever its actions', () => {
+  assert.equal(actionVerb({ ...swipeOf('markRead', 'archive'), name: ' Done ' }), 'Done');
+  assert.equal(actionVerb({ ...swipeOf('archive'), allFromSender: true, name: 'Clear sender' }), 'Clear sender');
+  assert.equal(actionVerb({ ...swipeOf('archive'), name: '  ' }), 'Archive', 'a blank name counts as none');
 });
 
 test("a swipe's icon and color come from its most telling action", () => {

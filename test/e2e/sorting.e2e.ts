@@ -620,11 +620,13 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   const todo = gmail.labelList.find(label => label.name === 'todo accounting')!;
   assert.ok(todo, 'the new label is created in Gmail as soon as it is added');
   await addAction(page, 'Archive');
-  assert.deepEqual(await page.locator('.settings-group').first().locator('.row-text').allTextContents(), [
-    'Add labelReceipts',
-    'Add labeltodo accounting',
-    'Archive',
-  ]);
+  assert.deepEqual(
+    await page
+      .locator('.settings-group', { has: page.getByRole('heading', { name: 'Does' }) })
+      .locator('.row-text')
+      .allTextContents(),
+    ['Add labelReceipts', 'Add labeltodo accounting', 'Archive'],
+  );
   await page.screenshot({ path: `${screenshots}settings-labels.png` });
   await closeSettings(page);
   await page.locator('dialog').waitFor({ state: 'hidden' });
@@ -847,6 +849,35 @@ test("the phone's Back, a close request to the dialog, steps up one level at a t
   await page.locator('dialog.read-view').waitFor();
   await page.keyboard.press('Escape');
   await page.locator('dialog.read-view').waitFor({ state: 'detached' });
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
+test('a named swipe shows its name on its button and while dragging; the message still says what happened', async () => {
+  const gmail = new FakeGmail(sampleThreads(3));
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: /^Edit Unread/ }).click();
+  await openSwipe(page, 'Right');
+  const name = page.locator('dialog.settings-dialog').getByLabel('Name', { exact: true });
+  assert.equal(
+    await name.getAttribute('placeholder'),
+    'Optional, such as Archive +1',
+    'the placeholder shows the automatic name',
+  );
+  await name.fill('Done with it');
+  await page.screenshot({ path: `${screenshots}settings-swipe-name.png` });
+  await settingsBack(page);
+  await page.getByRole('button', { name: 'Right swipe: Done with it · Mark read, archive' }).waitFor();
+  await closeSettings(page);
+  await page.locator('dialog').waitFor({ state: 'hidden' });
+
+  await page.locator('.action-bar').getByRole('button', { name: 'Done with it' }).waitFor();
+  await drag(page, 200, 10, async page => {
+    await page.locator('.swipe-intent', { hasText: 'Done with it' }).waitFor();
+  });
+  await page.getByRole('status').filter({ hasText: 'Marked read and archived' }).waitFor();
   assert.deepEqual(errors, []);
   await page.context().close();
 });

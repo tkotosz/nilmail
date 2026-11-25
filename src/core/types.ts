@@ -75,6 +75,8 @@ export interface Swipe {
   actions: Action[];
   /** The actions also cover the sender's other conversations in the pile, with one undo. */
   allFromSender: boolean;
+  /** The user's name for the swipe, shown on its button and while dragging; '' to name it after its actions. */
+  name: string;
 }
 
 /** Which conversations a pile holds; every filter set must match. */

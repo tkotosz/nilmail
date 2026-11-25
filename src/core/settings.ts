@@ -41,6 +41,9 @@ function restoreLabels(saved: unknown): GmailLabel[] {
   return labels;
 }
 
+/** How long a swipe's name can be; its button has room for about two short lines. */
+export const swipeNameLimit = 30;
+
 /** One saved action, or null when it cannot work: Add label and Remove label need their label. */
 function restoreAction(saved: unknown): Action | null {
   const input = asRecord(saved);
@@ -84,7 +87,8 @@ function restoreSwipe(saved: unknown, fallback: Swipe, archiveMarksRead: boolean
   const standalone = actions.find(action => standaloneActionIds.includes(action.id));
   if (standalone) actions = [standalone];
   if (!actions.length) return fallback;
-  const restored: Swipe = { actions, allFromSender: false };
+  const name = typeof input.name === 'string' ? input.name.trim().slice(0, swipeNameLimit) : '';
+  const restored: Swipe = { actions, allFromSender: false, name };
   return { ...restored, allFromSender: input.allFromSender === true && coversSender(restored) };
 }
 
@@ -202,9 +206,9 @@ export function withCurrentLabels(settings: Settings, known: GmailLabel[]): Sett
     },
     swipes: Object.fromEntries(
       directions.map(direction => {
-        const { actions, allFromSender } = pile.swipes[direction];
+        const { actions, allFromSender, name } = pile.swipes[direction];
         const kept = actions.map(action => (action.label ? { ...action, label: current(action.label) } : action));
-        return [direction, restoreSwipe({ actions: kept, allFromSender }, swipeOf('skip'), false)];
+        return [direction, restoreSwipe({ actions: kept, allFromSender, name }, swipeOf('skip'), false)];
       }),
     ) as Record<Direction, Swipe>,
   }));

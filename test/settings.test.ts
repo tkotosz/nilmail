@@ -52,8 +52,8 @@ test('a saved pile keeps its filters and swipes; anything invalid falls back', (
     name: 'Accounting',
     filters: { ...emptyFilters, where: 'inbox', hasLabels: [later], search: 'older_than:30d' },
     swipes: {
-      right: { actions: [removeLabel(later)], allFromSender: false },
-      left: { actions: [addLabel(later), addLabel(bills)], allFromSender: false },
+      right: { actions: [removeLabel(later)], allFromSender: false, name: '' },
+      left: { actions: [addLabel(later), addLabel(bills)], allFromSender: false, name: '' },
       up: defaultSwipes.up,
       down: defaultSwipes.down,
     },
@@ -75,7 +75,7 @@ test('settings from before piles become the Unread pile, with its swipes and sea
     swipes: {
       ...unreadPile.swipes,
       right: swipeOf('archive'),
-      left: { actions: [addLabel(later), { id: 'archive' }], allFromSender: false },
+      left: { actions: [addLabel(later), { id: 'archive' }], allFromSender: false, name: '' },
     },
   });
   assert.equal(restored.piles.length, 1);
@@ -102,7 +102,7 @@ test('a swipe of several actions is restored; each counts once, and Read, Reply 
     restore({
       actions: [{ id: 'markRead' }, addLabel(later), addLabel(later), { id: 'addLabel' }, { id: 'archive' }, { id: 'nope' }],
     }),
-    { actions: [{ id: 'markRead' }, addLabel(later), { id: 'archive' }], allFromSender: false },
+    { actions: [{ id: 'markRead' }, addLabel(later), { id: 'archive' }], allFromSender: false, name: '' },
   );
   assert.deepEqual(restore({ actions: [{ id: 'archive' }, { id: 'reply' }] }), swipeOf('reply'));
   assert.deepEqual(restore({ actions: [] }), defaultSwipes.right, 'a swipe with no action falls back');
@@ -135,8 +135,8 @@ test('labels take their current names from Gmail, and a deleted one drops out', 
     filters: { ...newPile('p1', 'x').filters, hasLabels: [later], lacksLabels: [bills] },
     swipes: {
       ...defaultSwipes,
-      right: { actions: [removeLabel(later)], allFromSender: false },
-      left: { actions: [addLabel(later), addLabel(bills), { id: 'archive' as const }], allFromSender: false },
+      right: { actions: [removeLabel(later)], allFromSender: false, name: '' },
+      left: { actions: [addLabel(later), addLabel(bills), { id: 'archive' as const }], allFromSender: false, name: '' },
     },
   };
   const renamed = withCurrentLabels({ ...defaultSettings, piles: [pile] }, [{ id: 'Label_1', name: 'Todo accounting' }]);
@@ -144,10 +144,10 @@ test('labels take their current names from Gmail, and a deleted one drops out', 
   assert.deepEqual(updated.filters.hasLabels, [{ id: 'Label_1', name: 'Todo accounting' }]);
   assert.deepEqual(updated.filters.lacksLabels, []);
   const renamedLabel = { id: 'Label_1', name: 'Todo accounting' };
-  assert.deepEqual(updated.swipes.right, { actions: [removeLabel(renamedLabel)], allFromSender: false });
+  assert.deepEqual(updated.swipes.right, { actions: [removeLabel(renamedLabel)], allFromSender: false, name: '' });
   assert.deepEqual(
     updated.swipes.left,
-    { actions: [addLabel(renamedLabel), { id: 'archive' }], allFromSender: false },
+    { actions: [addLabel(renamedLabel), { id: 'archive' }], allFromSender: false, name: '' },
     'the deleted label leaves the swipe',
   );
 
@@ -169,4 +169,15 @@ test('a swipe can cover all from the sender, where its action allows', () => {
   assert.equal(restored.swipes.right.allFromSender, true);
   assert.equal(restored.swipes.up.allFromSender, false, 'reading is about one conversation');
   assert.equal(restored.swipes.left.allFromSender, false);
+});
+
+test("a swipe's name is kept, trimmed and limited, and survives a label rename", () => {
+  const restore = (name: unknown) =>
+    restoreSettings({ piles: [{ id: 'p', name: 'P', swipes: { left: { actions: [{ id: 'archive' }], name } } }] }).piles[0]!;
+  assert.equal(restore('  File invoice ').swipes.left.name, 'File invoice');
+  assert.equal(restore('x'.repeat(50)).swipes.left.name.length, 30);
+  assert.equal(restore(42).swipes.left.name, '');
+  const named = restore('Filed');
+  const renamed = withCurrentLabels({ ...defaultSettings, piles: [named] }, []);
+  assert.equal(renamed.piles[0]!.swipes.left.name, 'Filed');
 });
