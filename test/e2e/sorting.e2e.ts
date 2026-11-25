@@ -107,8 +107,14 @@ const waitForCard = (page: Page) => page.locator('.swipe-card .mail-card').waitF
 const openSwipe = (page: Page, direction: string) =>
   page.getByRole('button', { name: new RegExp(`^${direction} swipe:`) }).click();
 
-/** Adds an action to the open swipe page, by its option's value: an action id, or `add:<label id>` / `remove:<label id>`. */
-const addAction = (page: Page, value: string) => page.getByRole('combobox', { name: 'Add an action' }).selectOption(value);
+/** Adds an action from the open swipe page: Add an action, the action by name, and for Add or Remove label the label. */
+async function addAction(page: Page, action: string, label?: string) {
+  const settings = page.locator('dialog.settings-dialog');
+  await settings.getByRole('button', { name: 'Add an action' }).click();
+  await settings.getByRole('button', { name: new RegExp(`^${action}`) }).click();
+  if (label) await settings.getByRole('button', { name: label, exact: true }).click();
+  await settings.getByRole('button', { name: 'Add an action' }).waitFor();
+}
 
 /** Waits until a pile's tab shows `text`, its name and count, such as "Unread · 12". */
 const waitForCount = (page: Page, text: string) =>
@@ -511,7 +517,7 @@ test('a swipe set to all from the sender sorts every unread conversation from th
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
   await page.getByRole('button', { name: 'Right swipe: Mark read, archive, all from the sender' }).click();
   assert.ok(await page.getByRole('switch', { name: /All from this sender/ }).isChecked());
-  await addAction(page, 'read');
+  await addAction(page, 'Read');
   assert.equal(await page.getByRole('switch', { name: /All from this sender/ }).count(), 0, 'reading is about one conversation');
   assert.deepEqual(errors, []);
   await page.context().close();
@@ -528,7 +534,7 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
   await page.getByRole('button', { name: 'Down swipe: Mark read' }).waitFor();
   await openSwipe(page, 'Left');
-  await addAction(page, 'skip');
+  await addAction(page, 'Skip');
   assert.deepEqual(await page.locator('.settings-group .row .row-title').first().textContent(), 'Skip', 'Skip stands alone');
   await page.getByRole('button', { name: 'Unread', exact: true }).click();
   await page.getByRole('button', { name: 'Left swipe: Skip' }).waitFor();
@@ -537,7 +543,7 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
   await page.getByRole('button', { name: 'Down swipe: Skip' }).waitFor();
   await openSwipe(page, 'Left');
   await page.getByRole('button', { name: 'Remove Delete' }).click();
-  await addAction(page, 'archive');
+  await addAction(page, 'Archive');
   await page.getByRole('button', { name: 'Close' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
@@ -573,21 +579,21 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.getByRole('heading', { name: 'Leave without this change?' }).waitFor();
   await page.screenshot({ path: `${screenshots}settings-leave.png`, animations: 'disabled' });
   await page.getByRole('button', { name: 'Fix it' }).click();
-  const menu = page.getByRole('combobox', { name: 'Add an action' });
-  assert.deepEqual(
-    await menu.locator('optgroup[label="Add label"] option').allTextContents(),
-    ['Add Receipts', 'New label…'],
-    'only user labels',
-  );
-  await addAction(page, 'add:Label_receipts');
+  await page.getByRole('button', { name: 'Add an action' }).click();
+  await page.screenshot({ path: `${screenshots}settings-add-action.png` });
+  await page.getByRole('button', { name: /^Add label/ }).click();
+  assert.deepEqual(await page.locator('.settings-group .row .row-title').allTextContents(), ['Receipts'], 'only user labels');
+  await page.getByRole('button', { name: 'Receipts', exact: true }).click();
   await page.getByText('Choose what the down swipe does.').waitFor({ state: 'hidden' });
-  await addAction(page, 'new-label');
+  await page.getByRole('button', { name: 'Add an action' }).click();
+  await page.getByRole('button', { name: /^Add label/ }).click();
+  assert.equal(await page.getByRole('button', { name: 'Receipts' }).isDisabled(), true, 'a label already added is dimmed');
   await page.getByLabel('New label').fill('todo accounting');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('button', { name: 'Remove Add label todo accounting' }).waitFor();
   const todo = gmail.labelList.find(label => label.name === 'todo accounting')!;
   assert.ok(todo, 'the new label is created in Gmail as soon as it is added');
-  await addAction(page, 'archive');
+  await addAction(page, 'Archive');
   assert.deepEqual(await page.locator('.settings-group').first().locator('.row-text').allTextContents(), [
     'Add labelReceipts',
     'Add labeltodo accounting',
@@ -614,9 +620,14 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await openSwipe(page, 'Right');
   await page.getByRole('button', { name: 'Remove Mark read' }).click();
   await page.getByRole('button', { name: 'Remove Archive' }).click();
-  const removeOptions = page.getByRole('combobox', { name: 'Add an action' }).locator('optgroup[label="Remove label"] option');
-  assert.equal(await removeOptions.first().textContent(), 'Remove todo accounting', "the pile's own label comes first");
-  await addAction(page, `remove:${todo.id}`);
+  await page.getByRole('button', { name: 'Add an action' }).click();
+  await page.getByRole('button', { name: /^Remove label/ }).click();
+  assert.equal(
+    await page.locator('.settings-group .row .row-title').first().textContent(),
+    'todo accounting',
+    "the pile's own label comes first",
+  );
+  await page.getByRole('button', { name: 'todo accounting', exact: true }).click();
   await page.getByRole('button', { name: 'Accounting', exact: true }).click();
   await page.locator('.group-note', { hasText: 'Anywhere · read or unread · has todo accounting' }).waitFor();
   await page.screenshot({ path: `${screenshots}settings-pile.png` });

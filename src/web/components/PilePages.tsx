@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Tag, Trash2, X } from 'lucide-react';
+import { ChevronRight, Plus, Tag, Trash2, X } from 'lucide-react';
 import { actionLabels, coversSender, mainAction } from '../../core/actions.ts';
 import { categoryNames, moreFiltersSummary, pileSummary } from '../../core/pile.ts';
 import {
@@ -23,7 +23,9 @@ export type PilePage =
   | { name: 'pile' }
   | { name: 'labels'; which: 'hasLabels' | 'lacksLabels' }
   | { name: 'more' }
-  | { name: 'swipe'; direction: Direction };
+  | { name: 'swipe'; direction: Direction }
+  | { name: 'addAction'; direction: Direction }
+  | { name: 'pickLabel'; direction: Direction; action: 'addLabel' | 'removeLabel' };
 
 export const gestureOrder: Direction[] = ['left', 'right', 'up', 'down'];
 
@@ -235,57 +237,33 @@ function PileMain({
 /** Whether two actions are the same: the same kind, and for label actions the same label. */
 const sameAction = (a: Action, b: Action) => a.id === b.id && a.label?.id === b.label?.id;
 
-/** The simple actions the "Add an action" menu offers, with the ones that only work alone marked so. */
-const simpleActions: ActionId[] = ['markRead', 'archive', 'delete', 'removeAllLabels', 'read', 'reply', 'skip'];
+/** Adds `action` to a swipe: Read, Reply and Skip replace its list, and anything added to them replaces them. */
+function withAction(current: Swipe, action: Action): Swipe {
+  if (current.actions.some(item => sameAction(item, action))) return current;
+  const alone = standaloneActionIds.includes(action.id);
+  const actions = alone ? [action] : [...current.actions.filter(item => !standaloneActionIds.includes(item.id)), action];
+  const next = { ...current, actions };
+  return { ...next, allFromSender: next.allFromSender && coversSender(next) };
+}
 
-/**
- * A swipe's actions, each removable, and "Add an action": one menu of every action, with Add label and Remove label for
- * each label. Read, Reply and Skip replace the list; anything added to them replaces them.
- */
+/** A swipe's actions, each removable, and "Add an action", which opens a page of its own. */
 function SwipePage({
   pile,
   direction,
-  known,
-  makeLabel,
   onChange,
+  onOpen,
   onBack,
 }: {
   pile: Pile;
   direction: Direction;
-  known: GmailLabel[];
-  makeLabel: LabelMaker;
   onChange(swipe: Swipe): void;
+  onOpen(page: PilePage): void;
   onBack(): void;
 }) {
   const current = pile.swipes[direction];
-  const [naming, setNaming] = useState(false);
-  const has = (action: Action) => current.actions.some(item => sameAction(item, action));
-  const set = (actions: Action[]) => {
-    const next = { ...current, actions };
+  const remove = (index: number) => {
+    const next = { ...current, actions: current.actions.filter((_, at) => at !== index) };
     onChange({ ...next, allFromSender: next.allFromSender && coversSender(next) });
-  };
-  const add = (action: Action) => {
-    if (has(action)) return;
-    const alone = standaloneActionIds.includes(action.id);
-    set(alone ? [action] : [...current.actions.filter(item => !standaloneActionIds.includes(item.id)), action]);
-  };
-  // A pile's own labels come first in Remove label, as removing one is how mail leaves the pile.
-  const removable = withChosen(
-    [...pile.filters.hasLabels, ...known.filter(label => !pile.filters.hasLabels.some(own => own.id === label.id))],
-    [],
-  );
-  const choose = (value: string) => {
-    if (value === 'new-label') return setNaming(true);
-    const [kind, id] = value.split(':') as [string, string | undefined];
-    if (kind === 'add') {
-      const label = known.find(item => item.id === id);
-      if (label) add({ id: 'addLabel', label });
-    } else if (kind === 'remove') {
-      const label = removable.find(item => item.id === id);
-      if (label) add({ id: 'removeLabel', label });
-    } else {
-      add({ id: kind as ActionId });
-    }
   };
   return (
     <>
@@ -302,61 +280,18 @@ function SwipePage({
               type="button"
               className="icon-button small"
               aria-label={`Remove ${actionLabels[action.id].verb}${action.label ? ` ${action.label.name}` : ''}`}
-              onClick={() => set(current.actions.filter((_, at) => at !== index))}
+              onClick={() => remove(index)}
             >
               <X size={20} />
             </button>
           </div>
         ))}
-        <label className="row add-row">
+        <button type="button" className="row add-row" onClick={() => onOpen({ name: 'addAction', direction })}>
           <RowIcon>
             <Plus size={20} />
           </RowIcon>
           <span className="row-title">Add an action</span>
-          <select className="row-select" aria-label="Add an action" value="" onChange={event => choose(event.target.value)}>
-            <option value="" disabled>
-              Add an action
-            </option>
-            {simpleActions
-              .filter(id => !has({ id }))
-              .map(id => (
-                <option key={id} value={id}>
-                  {actionLabels[id].verb}
-                  {standaloneActionIds.includes(id) ? ' (on its own)' : ''}
-                </option>
-              ))}
-            <optgroup label="Add label">
-              {known
-                .filter(label => !has({ id: 'addLabel', label }))
-                .map(label => (
-                  <option key={label.id} value={`add:${label.id}`}>
-                    Add {label.name}
-                  </option>
-                ))}
-              <option value="new-label">New label…</option>
-            </optgroup>
-            {removable.length > 0 && (
-              <optgroup label="Remove label">
-                {removable
-                  .filter(label => !has({ id: 'removeLabel', label }))
-                  .map(label => (
-                    <option key={label.id} value={`remove:${label.id}`}>
-                      Remove {label.name}
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-          </select>
-        </label>
-        {naming && (
-          <NewLabelRow
-            makeLabel={makeLabel}
-            onAdd={label => {
-              add({ id: 'addLabel', label });
-              setNaming(false);
-            }}
-          />
-        )}
+        </button>
       </Group>
       <p className="group-note">
         All of them happen with one swipe, and one undo reverses them. Read, Reply and Skip work only on their own.
@@ -371,6 +306,129 @@ function SwipePage({
           />
         </Group>
       )}
+    </>
+  );
+}
+
+/** One action to pick: its icon and name; dimmed when the swipe already has it, with an arrow when a label comes next. */
+function ActionChoice({
+  action,
+  note,
+  done,
+  next,
+  onClick,
+}: {
+  action: ActionId;
+  note?: string;
+  done?: boolean;
+  next?: boolean;
+  onClick(): void;
+}) {
+  return (
+    <button type="button" className="row" disabled={done} onClick={onClick}>
+      <ActionIcon action={action} />
+      <span className="row-text">
+        <span className="row-title">{actionLabels[action].verb}</span>
+        {(done || note) && <span className="row-value">{done ? 'Already in this swipe' : note}</span>}
+      </span>
+      {next && <ChevronRight size={20} aria-hidden="true" className="row-trailing" />}
+    </button>
+  );
+}
+
+/** Every action a swipe can add, in the app's rows; Add label and Remove label go on to choose the label. */
+function AddActionPage({
+  pile,
+  direction,
+  onChange,
+  onOpen,
+}: {
+  pile: Pile;
+  direction: Direction;
+  onChange(swipe: Swipe): void;
+  onOpen(page: PilePage): void;
+}) {
+  const current = pile.swipes[direction];
+  const back = () => onOpen({ name: 'swipe', direction });
+  const add = (id: ActionId) => {
+    onChange(withAction(current, { id }));
+    back();
+  };
+  const has = (id: ActionId) => current.actions.some(action => action.id === id);
+  return (
+    <>
+      <BackLink title={`${directionArrows[direction]} ${directionNames[direction]} swipe`} onClick={back} />
+      <Group title="Add an action">
+        {(['markRead', 'archive', 'delete'] as const).map(id => (
+          <ActionChoice key={id} action={id} done={has(id)} onClick={() => add(id)} />
+        ))}
+        <ActionChoice action="addLabel" next onClick={() => onOpen({ name: 'pickLabel', direction, action: 'addLabel' })} />
+        <ActionChoice action="removeLabel" next onClick={() => onOpen({ name: 'pickLabel', direction, action: 'removeLabel' })} />
+        <ActionChoice action="removeAllLabels" done={has('removeAllLabels')} onClick={() => add('removeAllLabels')} />
+      </Group>
+      <Group title="On their own">
+        {(['read', 'reply', 'skip'] as const).map(id => (
+          <ActionChoice key={id} action={id} done={has(id)} note="Replaces the other actions" onClick={() => add(id)} />
+        ))}
+      </Group>
+    </>
+  );
+}
+
+/** The labels for an Add label or Remove label action; Add label can also name a new one, created in Gmail at once. */
+function LabelPickPage({
+  pile,
+  direction,
+  action,
+  known,
+  makeLabel,
+  onChange,
+  onOpen,
+}: {
+  pile: Pile;
+  direction: Direction;
+  action: 'addLabel' | 'removeLabel';
+  known: GmailLabel[];
+  makeLabel: LabelMaker;
+  onChange(swipe: Swipe): void;
+  onOpen(page: PilePage): void;
+}) {
+  const current = pile.swipes[direction];
+  const pick = (label: GmailLabel) => {
+    onChange(withAction(current, { id: action, label }));
+    onOpen({ name: 'swipe', direction });
+  };
+  // A pile's own labels come first in Remove label, as removing one is how mail leaves the pile.
+  const labels =
+    action === 'removeLabel'
+      ? [...pile.filters.hasLabels, ...known.filter(label => !pile.filters.hasLabels.some(own => own.id === label.id))]
+      : known;
+  return (
+    <>
+      <BackLink title="Add an action" onClick={() => onOpen({ name: 'addAction', direction })} />
+      <Group title={actionLabels[action].verb}>
+        {labels.map(label => {
+          const done = current.actions.some(item => sameAction(item, { id: action, label }));
+          return (
+            <button key={label.id} type="button" className="row" disabled={done} onClick={() => pick(label)}>
+              <RowIcon>
+                <Tag size={18} />
+              </RowIcon>
+              <span className="row-text">
+                <span className="row-title">{label.name}</span>
+                {done && <span className="row-value">Already in this swipe</span>}
+              </span>
+            </button>
+          );
+        })}
+        {action === 'addLabel' && <NewLabelRow makeLabel={makeLabel} onAdd={pick} />}
+        {!labels.length && action === 'removeLabel' && (
+          <div className="row">
+            <span className="row-value">You have no labels yet.</span>
+          </div>
+        )}
+      </Group>
+      <p className="group-note">Pick one. To add several labels, add another Add label.</p>
     </>
   );
 }
@@ -474,6 +532,8 @@ export function PileEditor({
 }) {
   const setFilters = (filters: Partial<PileFilters>) => onChange({ ...pile, filters: { ...pile.filters, ...filters } });
   const toPile = () => onOpen({ name: 'pile' });
+  const setSwipe = (direction: Direction) => (changed: Swipe) =>
+    onChange({ ...pile, swipes: { ...pile.swipes, [direction]: changed } });
   switch (page.name) {
     case 'pile':
       return (
@@ -502,13 +562,20 @@ export function PileEditor({
       return <MoreFiltersPage pile={pile} setFilters={setFilters} onBack={toPile} />;
     case 'swipe':
       return (
-        <SwipePage
+        <SwipePage pile={pile} direction={page.direction} onChange={setSwipe(page.direction)} onOpen={onOpen} onBack={toPile} />
+      );
+    case 'addAction':
+      return <AddActionPage pile={pile} direction={page.direction} onChange={setSwipe(page.direction)} onOpen={onOpen} />;
+    case 'pickLabel':
+      return (
+        <LabelPickPage
           pile={pile}
           direction={page.direction}
+          action={page.action}
           known={known}
           makeLabel={makeLabel}
-          onChange={changed => onChange({ ...pile, swipes: { ...pile.swipes, [page.direction]: changed } })}
-          onBack={toPile}
+          onChange={setSwipe(page.direction)}
+          onOpen={onOpen}
         />
       );
   }
