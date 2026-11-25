@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { countFromLabel, pileCount, pileSearch, pileSummary, searchLabelName, senderSearch } from '../src/core/pile.ts';
+import {
+  countFromLabel,
+  emptyFilters,
+  hasMoreFilters,
+  pileCount,
+  pileSearch,
+  pileSummary,
+  searchLabelName,
+  senderSearch,
+} from '../src/core/pile.ts';
 import type { PileFilters } from '../src/core/types.ts';
 
-const filters = (changes: Partial<PileFilters>): PileFilters => ({
-  read: 'any',
-  where: 'anywhere',
-  hasLabels: [],
-  lacksLabels: [],
-  search: '',
-  ...changes,
-});
+const filters = (changes: Partial<PileFilters>): PileFilters => ({ ...emptyFilters, ...changes });
 const todo = { id: 'Label_1', name: 'todo accounting' };
 const later = { id: 'Label_2', name: 'Later' };
 
@@ -22,6 +24,37 @@ test('a pile becomes a Gmail search; labels it must have go by id', () => {
     q: '-label:"todo-accounting" (from:shop.example)',
     labelIds: [],
   });
+});
+
+test('the dedicated filters become Gmail operators, and make the count an estimate', () => {
+  const more = filters({
+    read: 'read',
+    category: 'promotions',
+    olderThan: { count: 30, unit: 'd' },
+    from: ' shop.example ',
+    hasAttachment: true,
+    noLabels: true,
+  });
+  assert.deepEqual(pileSearch(more), {
+    q: 'is:read category:promotions older_than:30d from:"shop.example" has:attachment has:nouserlabels',
+    labelIds: [],
+  });
+  assert.ok(hasMoreFilters(more));
+  assert.ok(!hasMoreFilters(filters({ read: 'unread', hasLabels: [todo] })));
+  for (const extra of [
+    { category: 'social' as const },
+    { olderThan: { count: 1, unit: 'y' as const } },
+    { from: 'ann' },
+    { hasAttachment: true },
+    { noLabels: true },
+  ]) {
+    assert.equal(pileCount(filters({ where: 'inbox', ...extra })), null);
+  }
+  assert.equal(
+    pileSummary(more),
+    'Anywhere · read · no labels · Promotions · older than 30 days · from shop.example · with attachment',
+  );
+  assert.equal(pileSummary(filters({ olderThan: { count: 1, unit: 'y' } })), 'Anywhere · read or unread · older than 1 year');
 });
 
 test('label names in a search use hyphens for spaces, and keep the slash of a nested label', () => {

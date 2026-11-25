@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultSwipes, newPile, swipe, unreadPile } from '../src/core/pile.ts';
+import { defaultSwipes, emptyFilters, newPile, swipe, unreadPile } from '../src/core/pile.ts';
 import { defaultSettings, restoreSettings, withCurrentLabels } from '../src/core/settings.ts';
 
 const later = { id: 'Label_1', name: 'Later' };
@@ -46,7 +46,7 @@ test('a saved pile keeps its filters and swipes; anything invalid falls back', (
   assert.deepEqual(restored.piles[0], {
     id: 'p1',
     name: 'Accounting',
-    filters: { read: 'any', where: 'inbox', hasLabels: [later], lacksLabels: [], search: 'older_than:30d' },
+    filters: { ...emptyFilters, where: 'inbox', hasLabels: [later], search: 'older_than:30d' },
     swipes: {
       right: swipe('removeLabel', [later]),
       left: swipe('addLabels', [later, bills], false),
@@ -75,14 +75,28 @@ test('settings from before piles become the Unread pile, with its swipes and sea
   assert.equal(restored.loadImages, false);
 
   const custom = restoreSettings({ query: 'in:inbox is:unread category:promotions' });
-  assert.deepEqual(custom.piles[0]!.filters, {
-    read: 'any',
-    where: 'anywhere',
-    hasLabels: [],
-    lacksLabels: [],
-    search: 'in:inbox is:unread category:promotions',
-  });
+  assert.deepEqual(custom.piles[0]!.filters, { ...emptyFilters, search: 'in:inbox is:unread category:promotions' });
   assert.deepEqual(custom.piles[0]!.swipes, unreadPile.swipes, 'settings older still start from the default swipes');
+});
+
+test('the dedicated filters are restored when valid, and left empty otherwise', () => {
+  const restore = (filters: unknown) => restoreSettings({ piles: [{ id: 'p', name: 'P', filters }] }).piles[0]!.filters;
+  assert.deepEqual(
+    restore({ category: 'updates', olderThan: { count: 6, unit: 'm' }, from: ' bank ', hasAttachment: true, noLabels: true }),
+    {
+      ...emptyFilters,
+      read: 'unread',
+      where: 'inbox',
+      category: 'updates',
+      olderThan: { count: 6, unit: 'm' },
+      from: 'bank',
+      hasAttachment: true,
+      noLabels: true,
+    },
+  );
+  const broken = restore({ category: 'spam', olderThan: { count: 0.5, unit: 'w' }, from: 3, hasAttachment: 'yes' });
+  assert.deepEqual(broken, { ...emptyFilters, read: 'unread', where: 'inbox' });
+  assert.equal(restore({ olderThan: { count: 2, unit: 'w' } }).olderThan, null);
 });
 
 test('labels take their current names from Gmail, and a deleted one drops out', () => {

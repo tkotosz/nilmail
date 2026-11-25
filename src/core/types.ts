@@ -74,7 +74,16 @@ export interface PileFilters {
   hasLabels: GmailLabel[];
   /** The conversation has none of these labels. */
   lacksLabels: GmailLabel[];
-  /** Any Gmail search, added as written, such as `from:shop.example`. */
+  /** One of Gmail's inbox categories, or '' for any. */
+  category: '' | 'primary' | 'promotions' | 'social' | 'updates' | 'forums';
+  /** Only conversations older than this, such as 30 days; null for any age. */
+  olderThan: { count: number; unit: 'd' | 'm' | 'y' } | null;
+  /** A sender's address, name or domain, such as `shop.example`; '' for anyone. */
+  from: string;
+  hasAttachment: boolean;
+  /** Only conversations without any label the user made. */
+  noLabels: boolean;
+  /** Any Gmail search, added as written, such as `subject:invoice`. */
   search: string;
 }
 

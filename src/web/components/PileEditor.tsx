@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { actionLabels } from '../../core/actions.ts';
-import { pileSummary, swipe } from '../../core/pile.ts';
+import { categoryNames, hasMoreFilters, pileSummary, swipe } from '../../core/pile.ts';
 import {
   gestureActionIds,
   type ActionId,
@@ -120,6 +121,9 @@ export function PileEditor({
   onDelete?(): void;
 }) {
   const setFilters = (filters: Partial<PileFilters>) => onChange({ ...pile, filters: { ...pile.filters, ...filters } });
+  // Folded away unless one is set, so the editor stays short on a phone.
+  const [moreOpen, setMoreOpen] = useState(() => hasMoreFilters(pile.filters));
+  const age = pile.filters.olderThan;
   return (
     <div className="pile-editor">
       <button type="button" className="quiet-button back-button" onClick={onBack}>
@@ -177,20 +181,98 @@ export function PileEditor({
             onChange={lacksLabels => setFilters({ lacksLabels })}
           />
         </div>
+        <details className="more-filters" open={moreOpen} onToggle={event => setMoreOpen(event.currentTarget.open)}>
+          <summary>More filters</summary>
+          <div className="more-filters-body">
+            <label className="gesture-choice">
+              <span>Category</span>
+              <select
+                value={pile.filters.category}
+                onChange={event => setFilters({ category: event.target.value as PileFilters['category'] })}
+              >
+                <option value="">Any</option>
+                {Object.entries(categoryNames).map(([value, name]) => (
+                  <option key={value} value={value}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="gesture-choice">
+              <span id="older-than">Older than</span>
+              <div className="age-field" role="group" aria-labelledby="older-than">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  aria-label="Older than, amount"
+                  placeholder="Any"
+                  value={age?.count ?? ''}
+                  onChange={event => {
+                    const count = Math.floor(Number(event.target.value));
+                    setFilters({ olderThan: count >= 1 ? { count, unit: age?.unit ?? 'd' } : null });
+                  }}
+                />
+                <select
+                  aria-label="Older than, unit"
+                  value={age?.unit ?? 'd'}
+                  disabled={!age}
+                  onChange={event => age && setFilters({ olderThan: { ...age, unit: event.target.value as 'd' | 'm' | 'y' } })}
+                >
+                  <option value="d">days</option>
+                  <option value="m">months</option>
+                  <option value="y">years</option>
+                </select>
+              </div>
+            </div>
+            <label className="query-field">
+              <span>From</span>
+              <input
+                type="text"
+                value={pile.filters.from}
+                onChange={event => setFilters({ from: event.target.value })}
+                placeholder="Address, name or domain"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+              />
+            </label>
+            <label className="toggle small">
+              <input
+                type="checkbox"
+                checked={pile.filters.hasAttachment}
+                onChange={event => setFilters({ hasAttachment: event.target.checked })}
+              />
+              <span>Has an attachment</span>
+            </label>
+            <label className="toggle small">
+              <input
+                type="checkbox"
+                checked={pile.filters.noLabels}
+                onChange={event => setFilters({ noLabels: event.target.checked })}
+              />
+              <span>Has none of my labels</span>
+            </label>
+            <p className="hint">
+              These make the count Gmail's estimate. Gmail checks labels per message, so a conversation where only one message has
+              a label may still count as having none.
+            </p>
+          </div>
+        </details>
         <label className="query-field">
           <span>Gmail search</span>
           <input
             type="text"
             value={pile.filters.search}
             onChange={event => setFilters({ search: event.target.value })}
-            placeholder="Optional, such as from:shop.example"
+            placeholder="Optional, such as subject:invoice"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
           />
         </label>
         <p className="hint">
-          Every filter must match. Any Gmail search works, such as <code>category:promotions older_than:30d</code>.
+          Every filter must match. Any Gmail search works, such as <code>subject:invoice</code> or <code>larger:5M</code>.
         </p>
         <p className="pile-summary">{pileSummary(pile.filters)}</p>
       </fieldset>

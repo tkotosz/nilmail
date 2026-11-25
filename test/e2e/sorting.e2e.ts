@@ -498,6 +498,43 @@ test('a pile Gmail can only estimate shows its count as a guess; it leaves out a
   await page.context().close();
 });
 
+test('More filters stay folded until used, and a pile built with them loads its mail', async () => {
+  const gmail = new FakeGmail(sampleThreads(12));
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'New pile' }).click();
+  await page.getByLabel('Name').fill('Anna');
+  await page.getByLabel('Read or unread').selectOption('any');
+  const more = page.locator('details.more-filters');
+  assert.equal(await more.getAttribute('open'), null, 'folded while none is set');
+  await more.locator('summary').click();
+  await page.getByLabel('Category').selectOption('updates');
+  await page.getByLabel('Older than, amount').fill('6');
+  await page.getByLabel('Older than, unit').selectOption('m');
+  await page.getByLabel('From', { exact: true }).fill('anna@example.com');
+  await page.getByLabel('Has an attachment').check();
+  await page
+    .locator('.pile-summary', {
+      hasText: 'Inbox · read or unread · Updates · older than 6 months · from anna@example.com · with attachment',
+    })
+    .waitFor();
+  await page.screenshot({ path: `${screenshots}settings-more-filters.png` });
+  await page.getByRole('button', { name: 'All piles' }).click();
+  await page.getByRole('button', { name: /^Edit Anna/ }).click();
+  assert.notEqual(await page.locator('details.more-filters').getAttribute('open'), null, 'open when one is set');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.locator('dialog').waitFor({ state: 'hidden' });
+
+  await waitForCount(page, 'Anna · ~3');
+  await page.getByLabel('Pile to sort').selectOption({ label: 'Anna · ~3' });
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 1');
+  await page.keyboard.press('ArrowDown');
+  await page.waitForFunction(() => document.querySelector('.swipe-card .mail-card-subject')?.textContent === 'Message number 5');
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('a change Gmail refuses puts the card back with a message', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   gmail.failChanges = 500;

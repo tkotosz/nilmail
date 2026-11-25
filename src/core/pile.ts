@@ -11,14 +11,24 @@ export const searchLabelName = (name: string) => name.trim().replace(/\s+/g, '-'
 
 /** The Gmail search for a pile. Labels it must have go by id, so their names cannot break the search. */
 export function pileSearch(filters: PileFilters): GmailSearch {
+  const from = filters.from.trim().replaceAll('"', '');
   const terms = [
     filters.read === 'unread' ? 'is:unread' : filters.read === 'read' ? 'is:read' : '',
     filters.where === 'inbox' ? 'in:inbox' : filters.where === 'archived' ? '-in:inbox' : '',
+    filters.category ? `category:${filters.category}` : '',
+    filters.olderThan ? `older_than:${filters.olderThan.count}${filters.olderThan.unit}` : '',
+    from ? `from:"${from}"` : '',
+    filters.hasAttachment ? 'has:attachment' : '',
+    filters.noLabels ? 'has:nouserlabels' : '',
     ...filters.lacksLabels.map(label => `-label:"${searchLabelName(label.name).replaceAll('"', '')}"`),
     filters.search.trim() ? `(${filters.search.trim()})` : '',
   ];
   return { q: terms.filter(Boolean).join(' '), labelIds: filters.hasLabels.map(label => label.id) };
 }
+
+/** Whether any of the filters beyond read state, place and labels is set; the editor keeps those folded away. */
+export const hasMoreFilters = (filters: PileFilters) =>
+  Boolean(filters.category || filters.olderThan || filters.from.trim() || filters.hasAttachment || filters.noLabels);
 
 /** Narrows a search to one sender. */
 export const senderSearch = (search: GmailSearch, address: string): GmailSearch => ({
@@ -31,7 +41,7 @@ export const senderSearch = (search: GmailSearch, address: string): GmailSearch 
  * unread, read or either. Any other pile has only Gmail's estimate for its search.
  */
 export function pileCount(filters: PileFilters): { labelId: string; read: PileFilters['read'] } | null {
-  if (filters.search.trim() || filters.lacksLabels.length) return null;
+  if (filters.search.trim() || filters.lacksLabels.length || hasMoreFilters(filters)) return null;
   if (filters.where === 'inbox' && !filters.hasLabels.length) {
     return { labelId: 'INBOX', read: filters.read };
   }
@@ -48,6 +58,19 @@ export function countFromLabel(numbers: { total: number; unread: number }, read:
   return numbers.total;
 }
 
+export const categoryNames: Record<Exclude<PileFilters['category'], ''>, string> = {
+  primary: 'Primary',
+  promotions: 'Promotions',
+  social: 'Social',
+  updates: 'Updates',
+  forums: 'Forums',
+};
+
+const unitNames = { d: ['day', 'days'], m: ['month', 'months'], y: ['year', 'years'] } as const;
+
+/** An age such as "30 days" or "1 year". */
+const ageText = ({ count, unit }: NonNullable<PileFilters['olderThan']>) => `${count} ${unitNames[unit][count === 1 ? 0 : 1]}`;
+
 /** A short description of the filters, such as "Inbox · unread · has Invoices". */
 export function pileSummary(filters: PileFilters): string {
   const names = (labels: GmailLabel[]) => labels.map(label => label.name).join(', ');
@@ -56,6 +79,11 @@ export function pileSummary(filters: PileFilters): string {
     { unread: 'unread', read: 'read', any: 'read or unread' }[filters.read],
     filters.hasLabels.length ? `has ${names(filters.hasLabels)}` : '',
     filters.lacksLabels.length ? `not ${names(filters.lacksLabels)}` : '',
+    filters.noLabels ? 'no labels' : '',
+    filters.category ? categoryNames[filters.category] : '',
+    filters.olderThan ? `older than ${ageText(filters.olderThan)}` : '',
+    filters.from.trim() ? `from ${filters.from.trim()}` : '',
+    filters.hasAttachment ? 'with attachment' : '',
     filters.search.trim() ? `“${filters.search.trim()}”` : '',
   ]
     .filter(Boolean)
@@ -71,10 +99,24 @@ const swipes = (down: Swipe['action']): Record<Direction, Swipe> => ({
   down: swipe(down),
 });
 
+/** Filters that match every conversation outside the Bin and Spam; a pile narrows them. */
+export const emptyFilters: PileFilters = {
+  read: 'any',
+  where: 'anywhere',
+  hasLabels: [],
+  lacksLabels: [],
+  category: '',
+  olderThan: null,
+  from: '',
+  hasAttachment: false,
+  noLabels: false,
+  search: '',
+};
+
 export const unreadPile: Pile = {
   id: 'unread',
   name: 'Unread',
-  filters: { read: 'unread', where: 'inbox', hasLabels: [], lacksLabels: [], search: '' },
+  filters: { ...emptyFilters, read: 'unread', where: 'inbox' },
   swipes: swipes('markRead'),
 };
 

@@ -7,7 +7,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
 ## What it does
 
 - **Piles.** A pile is a set of filters with its own swipes; the picker in the header switches between them, and the app opens on the first.
-  - Filters: unread, read or either; in the inbox, archived or anywhere; labels it has; labels it doesn't have; and any Gmail search.
+  - Filters: unread, read or either; in the inbox, archived or anywhere; labels it has; labels it doesn't have; and, under More filters, category, older than, from, has an attachment and has none of your labels. Any Gmail search covers the rest.
   - Unread (unread inbox mail) is the one pile at the start. It can be edited, reordered or deleted like any other; add a Read pile (read inbox mail) or any other you need.
   - A pile loads a few conversations at a time, however much mail matches.
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.

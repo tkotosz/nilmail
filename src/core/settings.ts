@@ -1,4 +1,4 @@
-import { defaultSwipes, swipe, unreadPile } from './pile.ts';
+import { categoryNames, defaultSwipes, emptyFilters, swipe, unreadPile } from './pile.ts';
 import {
   directions,
   gestureActionIds,
@@ -68,8 +68,23 @@ function restoreFilters(saved: unknown): PileFilters {
     where: input.where === 'archived' || input.where === 'anywhere' ? input.where : 'inbox',
     hasLabels: restoreLabels(input.hasLabels),
     lacksLabels: restoreLabels(input.lacksLabels),
+    category:
+      typeof input.category === 'string' && input.category in categoryNames ? (input.category as PileFilters['category']) : '',
+    olderThan: restoreAge(input.olderThan),
+    from: typeof input.from === 'string' ? input.from.trim() : '',
+    hasAttachment: input.hasAttachment === true,
+    noLabels: input.noLabels === true,
     search: typeof input.search === 'string' ? input.search.trim() : '',
   };
+}
+
+/** A saved age: a whole number of days, months or years, at least one. */
+function restoreAge(saved: unknown): PileFilters['olderThan'] {
+  const input = asRecord(saved);
+  const count = input.count;
+  const unit = input.unit;
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) return null;
+  return unit === 'd' || unit === 'm' || unit === 'y' ? { count, unit } : null;
 }
 
 /** A saved pile, or null when it has no id or name. Its swipes start from the defaults of a new pile. */
@@ -107,9 +122,7 @@ function fromDecks(input: Record<string, unknown>): Pile[] {
   const swipes = asRecord(input.swipes);
   const query = typeof input.query === 'string' ? input.query.trim() : '';
   const unread: Pile =
-    query && query !== oldDefaultQuery
-      ? { ...unreadPile, filters: { read: 'any', where: 'anywhere', hasLabels: [], lacksLabels: [], search: query } }
-      : unreadPile;
+    query && query !== oldDefaultQuery ? { ...unreadPile, filters: { ...emptyFilters, search: query } } : unreadPile;
   return [{ ...unread, swipes: oldSwipes(swipes.unread, unreadPile.swipes) }];
 }
 
