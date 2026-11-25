@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { ExternalLink, LogOut } from 'lucide-react';
 import { newPile } from '../../core/pile.ts';
 import { restoreSettings } from '../../core/settings.ts';
 import { directions, type GmailLabel, type Pile, type Settings } from '../../core/types.ts';
 import { directionNames } from '../action-ui.ts';
 import { problemText, type WebGmail } from '../gmail-http.ts';
 import { DiscardDialog, Modal } from './Modal.tsx';
-import { isStaged } from './LabelPicker.tsx';
-import { PileEditor } from './PileEditor.tsx';
+import { isStaged, PileEditor, type PilePage } from './PilePages.tsx';
 import { PileList } from './PileList.tsx';
+import { CheckRow, Group } from './SettingsRows.tsx';
 
 /** Every label a pile names, in its filters and its swipes. */
 const pileLabels = (pile: Pile): GmailLabel[] => [
@@ -17,14 +17,20 @@ const pileLabels = (pile: Pile): GmailLabel[] => [
   ...directions.flatMap(direction => pile.swipes[direction].labels),
 ];
 
-/** Why the piles cannot be saved yet, and which pile to show; null when they can. */
-function problemWith(piles: Pile[]): { pileId: string; text: string } | null {
+/** Where Settings shows: the list of piles (null), or a page of one pile. */
+type Place = { pileId: string; page: PilePage } | null;
+
+/** Why the piles cannot be saved yet, and the page to fix it on; null when they can. */
+function problemWith(piles: Pile[]): { place: NonNullable<Place>; text: string } | null {
   for (const pile of piles) {
-    if (!pile.name.trim()) return { pileId: pile.id, text: 'Give the pile a name.' };
+    if (!pile.name.trim()) return { place: { pileId: pile.id, page: { name: 'pile' } }, text: 'Give the pile a name.' };
     for (const direction of directions) {
       const { action, labels } = pile.swipes[direction];
       if ((action === 'addLabels' || action === 'removeLabel') && !labels.length) {
-        return { pileId: pile.id, text: `Choose a label for the ${directionNames[direction].toLowerCase()} swipe.` };
+        return {
+          place: { pileId: pile.id, page: { name: 'swipe', direction } },
+          text: `Choose a label for the ${directionNames[direction].toLowerCase()} swipe.`,
+        };
       }
     }
   }
@@ -73,8 +79,7 @@ export function SettingsForm({
   onSignOut(): void;
 }) {
   const [draft, setDraft] = useState(settings);
-  /** The pile being edited, or null for the list of piles and the other settings. */
-  const [editing, setEditing] = useState<string | null>(null);
+  const [place, setPlace] = useState<Place>(null);
   /** The user's labels, or null while they load. */
   const [labels, setLabels] = useState<GmailLabel[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -99,14 +104,19 @@ export function SettingsForm({
     };
   }, [gmail]);
 
+  /** Every page starts at its top. */
+  const go = (next: Place) => {
+    setPlace(next);
+    document.querySelector('dialog[open] .modal-content')?.scrollTo(0, 0);
+  };
   const change = <Key extends keyof Settings>(key: Key, value: Settings[Key]) =>
     setDraft(current => ({ ...current, [key]: value }));
   const setPiles = (update: (piles: Pile[]) => Pile[]) => setDraft(current => ({ ...current, piles: update(current.piles) }));
-  const editedPile = draft.piles.find(pile => pile.id === editing);
+  const pile = place && draft.piles.find(item => item.id === place.pileId);
 
   function movePile(id: string, by: -1 | 1) {
     setPiles(piles => {
-      const from = piles.findIndex(pile => pile.id === id);
+      const from = piles.findIndex(item => item.id === id);
       const to = from + by;
       if (from < 0 || to < 0 || to >= piles.length) return piles;
       const moved = [...piles];
@@ -116,15 +126,15 @@ export function SettingsForm({
   }
 
   function addPile() {
-    const pile = newPile(crypto.randomUUID(), 'New pile');
-    setPiles(piles => [...piles, pile]);
-    setEditing(pile.id);
+    const added = newPile(crypto.randomUUID(), 'New pile');
+    setPiles(piles => [...piles, added]);
+    go({ pileId: added.id, page: { name: 'pile' } });
   }
 
   async function save() {
     const invalid = problemWith(draft.piles);
     if (invalid) {
-      setEditing(invalid.pileId);
+      go(invalid.place);
       return setProblem(invalid.text);
     }
     setSaving(true);
@@ -142,6 +152,7 @@ export function SettingsForm({
     <Modal
       name="Settings"
       fullScreen
+      className="settings-dialog"
       onClose={requestClose}
       action={
         <button type="submit" form="settings-form" className="button text" disabled={saving}>
@@ -157,69 +168,70 @@ export function SettingsForm({
           void save();
         }}
       >
-        {editedPile ? (
+        {problem && (
+          <p className="form-problem" role="alert">
+            {problem}
+          </p>
+        )}
+        {pile && place ? (
           <PileEditor
-            pile={editedPile}
+            pile={pile}
+            page={place.page}
             known={labels ?? []}
-            onChange={changed => {
-              setPiles(piles => piles.map(pile => (pile.id === changed.id ? changed : pile)));
+            onChange={edited => {
+              setPiles(piles => piles.map(item => (item.id === edited.id ? edited : item)));
               setProblem(null);
             }}
-            onBack={() => setEditing(null)}
+            onOpen={page => go({ pileId: pile.id, page })}
+            onBack={() => go(null)}
             onDelete={
               draft.piles.length > 1
                 ? () => {
-                    setPiles(piles => piles.filter(pile => pile.id !== editedPile.id));
-                    setEditing(null);
+                    setPiles(piles => piles.filter(item => item.id !== pile.id));
+                    go(null);
                   }
                 : undefined
             }
           />
         ) : (
           <>
-            <PileList piles={draft.piles} onEdit={setEditing} onMove={movePile} onAdd={addPile} />
-
-            <fieldset>
-              <legend>Mail</legend>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={draft.archiveMarksRead}
-                  onChange={event => change('archiveMarksRead', event.target.checked)}
-                />
-                <span>Archive also marks as read</span>
-              </label>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={draft.loadImages}
-                  onChange={event => change('loadImages', event.target.checked)}
-                />
-                <span>Load images in emails automatically</span>
-              </label>
-              <p className="hint">Loading images lets senders see when you open their email.</p>
-            </fieldset>
+            <PileList
+              piles={draft.piles}
+              onEdit={id => go({ pileId: id, page: { name: 'pile' } })}
+              onMove={movePile}
+              onAdd={addPile}
+            />
+            <p className="group-note">The picker in the header lists the piles in this order, and nilmail opens on the first.</p>
+            <Group title="Mail">
+              <CheckRow
+                title="Archive also marks as read"
+                checked={draft.archiveMarksRead}
+                onChange={checked => change('archiveMarksRead', checked)}
+              />
+              <CheckRow
+                title="Load images in emails automatically"
+                value="Loading images lets senders see when you open their email."
+                checked={draft.loadImages}
+                onChange={checked => change('loadImages', checked)}
+              />
+            </Group>
+            <Group title="Account">
+              <div className="row">
+                <span className="row-text">
+                  <span className="row-title">Signed in</span>
+                  <span className="row-value">{email}</span>
+                </span>
+              </div>
+              <button type="button" className="row" onClick={onSignOut}>
+                <LogOut size={20} aria-hidden="true" className="row-lead" />
+                <span className="row-title">Sign out</span>
+              </button>
+              <a className="row" href="/privacy" target="_blank" rel="noopener">
+                <ExternalLink size={20} aria-hidden="true" className="row-lead" />
+                <span className="row-title">Privacy policy</span>
+              </a>
+            </Group>
           </>
-        )}
-
-        {problem && (
-          <p className="form-problem" role="alert">
-            {problem}
-          </p>
-        )}
-
-        {!editedPile && (
-          <div className="account">
-            <span>
-              Signed in as <strong>{email}</strong>
-            </span>
-            <button type="button" className="quiet-button" onClick={onSignOut}>
-              <LogOut size={16} aria-hidden="true" /> Sign out
-            </button>
-            <a href="/privacy" target="_blank" rel="noopener">
-              Privacy policy
-            </a>
-          </div>
         )}
       </form>
       {confirming && <DiscardDialog onKeep={() => setConfirming(false)} onDiscard={onClose} />}

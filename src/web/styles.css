@@ -207,21 +207,17 @@ svg {
 }
 
 /*
- * State layers: hover, focus and press lay the content color over a control at 8%, 10% and 10%. A control opts in with
- * `position: relative` and the class `state`, or through the shared selector below.
+ * State layers: hover, focus and press lay the content color over a control at 8%, 10% and 10%, through the shared
+ * selectors below.
  */
 .button,
 .icon-button,
 .chip-button,
 .action-button,
-.pile-row,
-.button-group button,
 .message.collapsed,
 .deck-picker,
 .google-button,
-.toast-undo,
-.label-chips button,
-.more-filters summary {
+.toast-undo {
   position: relative;
   isolation: isolate;
 }
@@ -229,14 +225,10 @@ svg {
 .icon-button::before,
 .chip-button::before,
 .action-button::before,
-.pile-row::before,
-.button-group button::before,
 .message.collapsed::before,
 .deck-picker::before,
 .google-button::before,
-.toast-undo::before,
-.label-chips button::before,
-.more-filters summary::before {
+.toast-undo::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -253,32 +245,19 @@ svg {
       .icon-button,
       .chip-button,
       .action-button,
-      .pile-row,
-      .button-group button,
       .message.collapsed,
       .deck-picker,
       .google-button,
-      .toast-undo,
-      .label-chips button,
-      .more-filters summary
+      .toast-undo
     ):hover:not(:disabled)::before {
     opacity: 0.08;
   }
 }
-:is(
-    .button,
-    .icon-button,
-    .chip-button,
-    .action-button,
-    .pile-row,
-    .button-group button,
-    .message.collapsed,
-    .deck-picker,
-    .google-button,
-    .toast-undo,
-    .label-chips button,
-    .more-filters summary
-  ):is(:focus-visible, :active, :has(:focus-visible)):not(:disabled)::before {
+:is(.button, .icon-button, .chip-button, .action-button, .message.collapsed, .deck-picker, .google-button, .toast-undo):is(
+    :focus-visible,
+    :active,
+    :has(:focus-visible)
+  ):not(:disabled)::before {
   opacity: 0.1;
 }
 
@@ -552,8 +531,10 @@ svg {
   field-sizing: content;
   cursor: pointer;
 }
-.deck-picker select:focus-visible {
-  outline-offset: 0;
+/* Chrome on Android keeps a tapped select "focus-visible" after its menu closes; the state layer shows focus instead. */
+.deck-picker select:focus-visible,
+.row-select:focus-visible {
+  outline: none;
 }
 .deck-picker svg {
   position: absolute;
@@ -1027,303 +1008,275 @@ dialog[open] {
   vertical-align: -3px;
 }
 
-/* Settings */
+/* Settings: rows in rounded groups, as Android's settings show them. */
+.settings-dialog {
+  --settings-page: var(--md-surface-container);
+  --settings-row: var(--md-surface-container-lowest);
+  background: var(--settings-page);
+}
+@media (prefers-color-scheme: dark) {
+  .settings-dialog {
+    --settings-page: var(--md-surface);
+    --settings-row: var(--md-surface-container-high);
+  }
+}
+@media (max-width: 599px) {
+  dialog.full-screen.settings-dialog {
+    background: var(--settings-page);
+  }
+}
+.settings-dialog .modal-content {
+  padding: 0 16px 32px;
+}
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 8px;
 }
-.settings-form fieldset {
-  border: 0;
-  padding: 0;
-  margin: 0;
+.settings-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 0;
 }
-.settings-form legend {
-  /* M3 title-small in primary, as list subheaders are. */
+.group-title {
+  margin: 16px 12px 8px;
   color: var(--md-primary);
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 500;
-  letter-spacing: 0.006em;
-  margin-bottom: 12px;
-  padding: 0;
 }
-.gesture-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.gesture-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-.gesture-choice,
-.query-field,
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  color: var(--md-on-surface-variant);
-  /* M3 body-small for field labels. */
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 500;
-}
-/* M3 outlined text fields and selects. */
-:is(.gesture-cell, .gesture-choice, .filter-field, .query-field, .label-picker, .label-new, .age-field)
-  :is(select, input[type='text'], input[type='number']) {
-  min-width: 0;
-  min-height: 56px;
-  border: 1px solid var(--md-outline);
-  border-radius: var(--shape-xs);
-  background: transparent;
-  padding: 0 16px;
-  color: var(--md-on-surface);
-  font-size: 1rem;
-  line-height: 1.5rem;
-  font-weight: 400;
-}
-:is(.gesture-cell, .gesture-choice, .filter-field, .query-field, .label-picker, .label-new, .age-field)
-  :is(select, input):focus-visible {
-  outline: 2px solid var(--md-primary);
-  outline-offset: -2px;
-  border-color: transparent;
-}
-select option {
-  background: var(--md-surface-container-high);
-  color: var(--md-on-surface);
-}
-input::placeholder {
-  color: var(--md-on-surface-variant);
-  opacity: 0.8;
-}
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 48px;
-  font-size: 1rem;
-  line-height: 1.5rem;
-}
-.toggle.small {
-  min-height: 40px;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  color: var(--md-on-surface);
-}
-/* M3 checkbox: settings here apply on Save, which M3 gives to checkboxes rather than switches. */
-.toggle input {
-  width: 18px;
-  height: 18px;
-  margin: 0 3px;
-  accent-color: var(--md-primary);
-}
-/* M3 connected button group: one choice among a few. */
-.button-group {
-  display: flex;
-  gap: 2px;
-}
-.button-group button {
-  flex: 1;
-  min-width: 0;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--shape-s);
-  background: var(--md-surface-container-highest);
-  color: var(--md-on-surface-variant);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  font-weight: 500;
-  transition: border-radius 200ms var(--ease-standard);
-}
-.button-group button:first-child {
-  border-radius: var(--shape-full) var(--shape-s) var(--shape-s) var(--shape-full);
-}
-.button-group button:last-child {
-  border-radius: var(--shape-s) var(--shape-full) var(--shape-full) var(--shape-s);
-}
-.button-group button[aria-checked='true'] {
-  border-radius: var(--shape-full);
-  background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
-}
-
-/* Piles: an M3 list in a rounded group. */
-.pile-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.group {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-radius: var(--shape-l);
+  border-radius: 24px;
   overflow: hidden;
 }
-.pile-list li {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding-right: 4px;
-  background: var(--md-surface-container);
+.group-note {
+  margin: 4px 12px 0 !important;
+  color: var(--md-on-surface-variant) !important;
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
-@media (max-width: 599px) {
-  .pile-list li {
-    background: var(--md-surface-container-low);
-  }
-}
-.pile-row {
-  flex: 1;
-  min-width: 0;
+.row {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 16px;
   min-height: 64px;
-  padding: 8px 8px 8px 16px;
+  padding: 12px 16px;
   border: 0;
-  background: transparent;
+  border-radius: 4px;
+  background: var(--settings-row);
   color: var(--md-on-surface);
   font: inherit;
   text-align: left;
+  text-decoration: none;
+}
+button.row,
+label.row,
+a.row {
   cursor: pointer;
 }
-.pile-row-text {
+:is(button.row, label.row, a.row)::before,
+.pile-open::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-standard);
+  pointer-events: none;
+}
+@media (hover: hover) {
+  :is(button.row, label.row, a.row, .pile-open):hover::before {
+    opacity: 0.08;
+  }
+}
+:is(button.row, label.row, a.row, .pile-open):active::before {
+  opacity: 0.1;
+}
+.row:focus-visible,
+.pile-open:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: -2px;
+}
+label.row:has(.row-select:focus-visible)::before {
+  opacity: 0.1;
+}
+.field-row:focus-within .row-label {
+  color: var(--md-primary);
+}
+.row input[type='checkbox']:focus-visible,
+.row input[type='radio']:focus-visible {
+  outline-offset: 2px;
+}
+.row-text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
-.pile-row-text strong {
-  /* M3 body-large for the headline of a list item. */
+.row-title {
+  /* M3 body-large: a list item's headline. */
   font-size: 1rem;
   line-height: 1.5rem;
-  font-weight: 500;
+  overflow-wrap: anywhere;
 }
-.pile-row-text span,
-.pile-summary {
+.row-value,
+.row-label {
+  /* M3 body-medium: a list item's supporting text. */
   color: var(--md-on-surface-variant);
   font-size: 0.875rem;
   line-height: 1.25rem;
   overflow-wrap: anywhere;
 }
-.pile-row svg {
+.row-trailing,
+.row-lead {
   flex: none;
   color: var(--md-on-surface-variant);
 }
-.pile-editor {
-  display: flex;
+.row input[type='checkbox'],
+.row input[type='radio'] {
+  width: 20px;
+  height: 20px;
+  margin: 0 2px;
+  accent-color: var(--md-primary);
+}
+.row-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--tone-container, var(--md-surface-container-highest));
+  color: var(--on-tone-container, var(--md-on-surface-variant));
+}
+/* A choice row: the phone's own menu opens from a select laid invisibly over the whole row. */
+.row-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+/* A text field in a row: the label above, the text as the row's headline. */
+.field-row {
   flex-direction: column;
-  gap: 24px;
+  align-items: stretch;
+  gap: 0;
+  padding-top: 10px;
+  padding-bottom: 6px;
+  cursor: text;
 }
-.back-button {
-  align-self: flex-start;
-}
-.quiet-button.danger {
-  align-self: flex-start;
-  border-color: var(--md-outline-variant);
-  color: var(--md-error);
-}
-.more-filters {
-  border-radius: var(--shape-l);
-  background: var(--md-surface-container);
-}
-@media (max-width: 599px) {
-  .more-filters {
-    background: var(--md-surface-container-low);
-  }
-}
-.more-filters summary {
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  border-radius: var(--shape-l);
+.field-row input,
+.field-row select,
+.new-label-row input {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 0 4px;
   color: var(--md-on-surface);
   font-size: 1rem;
   line-height: 1.5rem;
+  outline: none;
+}
+.field-row input::placeholder,
+.new-label-row input::placeholder {
+  color: var(--md-on-surface-variant);
+  opacity: 0.8;
+}
+.age-field {
+  display: flex;
+  gap: 12px;
+}
+.age-field input {
+  flex: 1;
+}
+.age-field select {
+  color: var(--md-primary);
   font-weight: 500;
   cursor: pointer;
 }
-.more-filters-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0 16px 16px;
+.age-field select:disabled {
+  color: var(--md-on-surface-variant);
+  opacity: 0.6;
 }
-.age-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
+.new-label-row {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
-.label-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.new-label-row input {
+  flex: 1;
 }
-/* M3 input chips. */
-.label-chips {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.danger-row {
+  color: var(--md-error);
+  font-weight: 500;
+  gap: 16px;
 }
-.label-chips li {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 32px;
-  padding: 0 4px 0 12px;
-  border-radius: var(--shape-s);
-  background: var(--plum-container);
-  color: var(--on-plum-container);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+.add-row {
+  color: var(--md-primary);
   font-weight: 500;
 }
-.label-chips small {
-  font-weight: 400;
-  opacity: 0.8;
+.add-row .row-icon {
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
-.label-chips button {
+/* A pile in the list: the row opens it; the arrows beside move it. */
+.pile-row {
+  padding: 0 8px 0 0;
+  gap: 0;
+}
+.pile-open {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 8px 12px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pile-move {
+  display: flex;
+  flex-direction: column;
+}
+.pile-move .icon-button.small {
+  width: 36px;
+  height: 32px;
+}
+.back-link {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  gap: 8px;
+  min-height: 48px;
+  margin: 0 0 -8px -4px;
+  padding: 0 12px 0 4px;
   border: 0;
   border-radius: var(--shape-full);
   background: transparent;
-  color: inherit;
-  cursor: pointer;
+  color: var(--md-primary);
+  font-weight: 500;
 }
-.label-new {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.label-new input {
-  flex: 1;
-}
-.settings-form .form-problem,
 .form-problem {
-  color: var(--md-error);
+  margin: 8px 12px 0 !important;
+  padding: 12px 16px;
+  border-radius: var(--shape-l);
+  background: var(--md-error-container);
+  color: var(--md-on-error-container) !important;
   font-size: 0.875rem;
-  margin: 0;
 }
 .hint {
   color: var(--md-on-surface-variant);
@@ -1336,17 +1289,6 @@ input::placeholder {
   background: var(--md-surface-container-highest);
   border-radius: var(--shape-xs);
   padding: 1px 4px;
-}
-.account {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid var(--md-outline-variant);
-  padding-top: 16px;
-  color: var(--md-on-surface-variant);
-  overflow-wrap: anywhere;
 }
 
 /* Read view: a full-screen surface with a top app bar and the docked toolbar. */

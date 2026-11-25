@@ -71,6 +71,19 @@ const unitNames = { d: ['day', 'days'], m: ['month', 'months'], y: ['year', 'yea
 /** An age such as "30 days" or "1 year". */
 const ageText = ({ count, unit }: NonNullable<PileFilters['olderThan']>) => `${count} ${unitNames[unit][count === 1 ? 0 : 1]}`;
 
+/** The More filters that are set, in brief, such as "Promotions · older than 30 days"; '' when none is. */
+export function moreFiltersSummary(filters: PileFilters): string {
+  return [
+    filters.noLabels ? 'no labels' : '',
+    filters.category ? categoryNames[filters.category] : '',
+    filters.olderThan ? `older than ${ageText(filters.olderThan)}` : '',
+    filters.from.trim() ? `from ${filters.from.trim()}` : '',
+    filters.hasAttachment ? 'with attachment' : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /** A short description of the filters, such as "Inbox · unread · has Invoices". */
 export function pileSummary(filters: PileFilters): string {
   const names = (labels: GmailLabel[]) => labels.map(label => label.name).join(', ');
@@ -79,11 +92,7 @@ export function pileSummary(filters: PileFilters): string {
     { unread: 'unread', read: 'read', any: 'read or unread' }[filters.read],
     filters.hasLabels.length ? `has ${names(filters.hasLabels)}` : '',
     filters.lacksLabels.length ? `not ${names(filters.lacksLabels)}` : '',
-    filters.noLabels ? 'no labels' : '',
-    filters.category ? categoryNames[filters.category] : '',
-    filters.olderThan ? `older than ${ageText(filters.olderThan)}` : '',
-    filters.from.trim() ? `from ${filters.from.trim()}` : '',
-    filters.hasAttachment ? 'with attachment' : '',
+    moreFiltersSummary(filters),
     filters.search.trim() ? `“${filters.search.trim()}”` : '',
   ]
     .filter(Boolean)

@@ -103,6 +103,10 @@ async function open(
 
 const topSubject = (page: Page) => page.locator('.swipe-card .mail-card-subject').textContent();
 const waitForCard = (page: Page) => page.locator('.swipe-card .mail-card').waitFor();
+/** Opens a swipe's page in a pile's settings, such as the down swipe's; its row is named "Down swipe: <what it does>". */
+const openSwipe = (page: Page, direction: string) =>
+  page.getByRole('button', { name: new RegExp(`^${direction} swipe:`) }).click();
+
 /** Waits until the pile picker offers `text`, such as "Unread · 12"; its options are never visible while it is closed. */
 const waitForCount = (page: Page, text: string) =>
   page.waitForFunction(
@@ -373,12 +377,16 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
   await waitForCard(page);
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
-  assert.equal(await page.getByRole('combobox', { name: 'Down', exact: true }).inputValue(), 'markRead');
-  await page.getByRole('combobox', { name: 'Left', exact: true }).selectOption('skip');
+  await page.getByRole('button', { name: 'Down swipe: Mark read' }).waitFor();
+  await openSwipe(page, 'Left');
+  await page.getByRole('radio', { name: 'Skip' }).check();
+  await page.getByRole('button', { name: 'Unread', exact: true }).click();
+  await page.getByRole('button', { name: 'Left swipe: Skip' }).waitFor();
   await page.getByRole('button', { name: 'All piles' }).click();
   await page.getByRole('button', { name: /^Edit Read/ }).click();
-  assert.equal(await page.getByRole('combobox', { name: 'Down', exact: true }).inputValue(), 'skip');
-  await page.getByRole('combobox', { name: 'Left', exact: true }).selectOption('archive');
+  await page.getByRole('button', { name: 'Down swipe: Skip' }).waitFor();
+  await openSwipe(page, 'Left');
+  await page.getByRole('radio', { name: 'Archive' }).check();
   await page.getByRole('button', { name: 'Save' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
@@ -406,20 +414,21 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
-  await page.getByRole('combobox', { name: 'Down', exact: true }).selectOption('addLabels');
+  await openSwipe(page, 'Down');
+  await page.getByRole('radio', { name: 'Add labels' }).check();
+  await page.getByRole('button', { name: 'Unread', exact: true }).click();
   await page.getByRole('button', { name: 'Save' }).click();
   await page.getByText('Choose a label for the down swipe.').waitFor();
-  const addTo = page.getByLabel('Add to down swipe labels');
+  assert.ok(await page.getByRole('radio', { name: 'Add labels' }).isChecked(), 'Save opens the swipe that needs a label');
   assert.deepEqual(
-    await addTo.locator('option').allTextContents(),
-    ['Add a label…', 'Receipts', 'New label…'],
-    'only user labels',
+    await page.getByRole('checkbox').evaluateAll(boxes => boxes.map(box => box.closest('label')?.textContent?.trim())),
+    ['Receipts', 'Also archiveFiles the conversation out of the inbox; read or unread stays as it was.'],
+    'only user labels, and Also archive',
   );
-  await addTo.selectOption({ label: 'Receipts' });
-  await page.getByLabel('Add to down swipe labels').selectOption({ label: 'New label…' });
-  await page.getByLabel('New label for down swipe labels').fill('todo accounting');
+  await page.getByRole('checkbox', { name: 'Receipts' }).check();
+  await page.getByLabel('New label').fill('todo accounting');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.locator('.label-chips', { hasText: 'todo accounting' }).waitFor();
+  assert.ok(await page.getByRole('checkbox', { name: /todo accounting/ }).isChecked());
   await page.screenshot({ path: `${screenshots}settings-labels.png` });
   await page.getByRole('button', { name: 'Save' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
@@ -434,13 +443,17 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
 
   await page.getByLabel('Pile to sort').selectOption({ label: 'Edit piles…' });
   await page.getByRole('button', { name: 'New pile' }).click();
-  await page.getByLabel('Name').fill('Accounting');
-  await page.getByRole('radio', { name: 'Either' }).click();
-  await page.getByRole('radio', { name: 'Anywhere' }).click();
-  await page.getByLabel('Add to has labels').selectOption({ label: 'todo accounting' });
-  await page.getByRole('combobox', { name: 'Right', exact: true }).selectOption('removeLabel');
-  assert.equal(await page.getByLabel('Right swipe label to remove').inputValue(), todo.id, "the pile's own label comes first");
-  await page.locator('.pile-summary', { hasText: 'Anywhere · read or unread · has todo accounting' }).waitFor();
+  await page.getByLabel('Name', { exact: true }).fill('Accounting');
+  await page.getByRole('combobox', { name: 'Read or unread' }).selectOption('any');
+  await page.getByRole('combobox', { name: 'Where' }).selectOption('anywhere');
+  await page.getByRole('button', { name: /^Has labels/ }).click();
+  await page.getByRole('checkbox', { name: 'todo accounting' }).check();
+  await page.getByRole('button', { name: 'Accounting', exact: true }).click();
+  await openSwipe(page, 'Right');
+  await page.getByRole('radio', { name: 'Remove label', exact: true }).check();
+  assert.ok(await page.getByRole('radio', { name: 'todo accounting' }).isChecked(), "the pile's own label comes first");
+  await page.getByRole('button', { name: 'Accounting', exact: true }).click();
+  await page.locator('.group-note', { hasText: 'Anywhere · read or unread · has todo accounting' }).waitFor();
   await page.screenshot({ path: `${screenshots}settings-pile.png` });
   await page.getByRole('button', { name: 'All piles' }).click();
   await page.screenshot({ path: `${screenshots}settings.png` });
@@ -500,31 +513,27 @@ test('a pile Gmail can only estimate shows its count as a guess; it leaves out a
   await page.context().close();
 });
 
-test('More filters stay folded until used, and a pile built with them loads its mail', async () => {
+test('More filters have a page of their own, and a pile built with them loads its mail', async () => {
   const gmail = new FakeGmail(sampleThreads(12));
   const { page, errors } = await open(gmail);
   await waitForCard(page);
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'New pile' }).click();
-  await page.getByLabel('Name').fill('Anna');
-  await page.getByRole('radio', { name: 'Either' }).click();
-  const more = page.locator('details.more-filters');
-  assert.equal(await more.getAttribute('open'), null, 'folded while none is set');
-  await more.locator('summary').click();
-  await page.getByLabel('Category').selectOption('updates');
+  await page.getByLabel('Name', { exact: true }).fill('Anna');
+  await page.getByRole('combobox', { name: 'Read or unread' }).selectOption('any');
+  await page.getByRole('button', { name: /^More filters/ }).click();
+  await page.getByRole('combobox', { name: 'Category' }).selectOption('updates');
   await page.getByLabel('Older than, amount').fill('6');
   await page.getByLabel('Older than, unit').selectOption('m');
   await page.getByLabel('From', { exact: true }).fill('anna@example.com');
-  await page.getByLabel('Has an attachment').check();
-  await page
-    .locator('.pile-summary', {
-      hasText: 'Inbox · read or unread · Updates · older than 6 months · from anna@example.com · with attachment',
-    })
-    .waitFor();
+  await page.getByRole('checkbox', { name: 'Has an attachment' }).check();
   await page.screenshot({ path: `${screenshots}settings-more-filters.png` });
+  await page.getByRole('button', { name: 'Anna', exact: true }).click();
+  await page
+    .getByRole('button', { name: /^More filters/ })
+    .filter({ hasText: 'Updates · older than 6 months · from anna@example.com · with attachment' })
+    .waitFor();
   await page.getByRole('button', { name: 'All piles' }).click();
-  await page.getByRole('button', { name: /^Edit Anna/ }).click();
-  assert.notEqual(await page.locator('details.more-filters').getAttribute('open'), null, 'open when one is set');
   await page.getByRole('button', { name: 'Save' }).click();
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
@@ -557,7 +566,7 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
   await page.screenshot({ path: `${screenshots}dark-settings.png` });
-  await page.getByLabel('Name').fill('Unread mail');
+  await page.getByLabel('Name', { exact: true }).fill('Unread mail');
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('heading', { name: 'Discard changes?' }).waitFor();
   await page.screenshot({ path: `${screenshots}dark-discard.png`, animations: 'disabled' });
