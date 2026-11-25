@@ -126,12 +126,16 @@ export function ReadView({
   onClose(): void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
   const [thread, setThread] = useState<ThreadView | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [opened, setOpened] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     dialog.current?.showModal();
+    // Opening a dialog focuses its first button, Back, which Chrome may ring as keyboard focus even after a swipe. The
+    // subject takes the focus instead: nothing shows, and a screen reader starts there.
+    title.current?.focus({ preventScroll: true });
   }, []);
 
   useEffect(() => {
@@ -161,7 +165,7 @@ export function ReadView({
         ))}
       </header>
       <div className="read-body">
-        <h2 id="read-subject" className="read-subject">
+        <h2 id="read-subject" className="read-subject" ref={title} tabIndex={-1}>
           {thread?.subject ?? card.subject}
         </h2>
         {problem && <p className="read-problem">{problem}</p>}

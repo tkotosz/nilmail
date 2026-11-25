@@ -22,9 +22,12 @@ export function Modal({
   fullScreen?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     ref.current?.showModal();
+    // The title takes the focus rather than Close, so no focus ring shows on opening.
+    title.current?.focus({ preventScroll: true });
     return () => opener?.focus({ preventScroll: true });
   }, []);
   return (
@@ -44,7 +47,9 @@ export function Modal({
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
           <X size={22} />
         </button>
-        <h2 id="dialog-title">{name}</h2>
+        <h2 id="dialog-title" ref={title} tabIndex={-1}>
+          {name}
+        </h2>
         {action}
       </header>
       <div className="modal-content">{children}</div>

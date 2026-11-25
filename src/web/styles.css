@@ -1427,6 +1427,11 @@ label.row:has(.row-select:focus-visible)::before {
   font-weight: 400;
   overflow-wrap: anywhere;
 }
+/* Dialog titles take the focus on opening, so keyboard focus starts there; they need no ring. */
+.read-subject:focus,
+#dialog-title:focus {
+  outline: none;
+}
 .read-body .spinner {
   align-self: center;
   margin-top: 40px;
