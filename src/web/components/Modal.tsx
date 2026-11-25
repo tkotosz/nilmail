@@ -1,4 +1,28 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+
+/**
+ * The events that turn a close request into `onRequest`: the phone's Back and Escape. Chrome sends them to an open modal
+ * dialog before the history, as `cancel`, which can be stopped only after the user has touched the page since the last
+ * one; otherwise it closes the dialog itself. Both cases end up in `onRequest`, the dialog reopened, so a second Back
+ * right after the first still steps back one level instead of closing everything.
+ */
+export function closeRequestHandlers(onRequest: () => void) {
+  return {
+    onCancel: (event: { cancelable: boolean; preventDefault(): void }) => {
+      // A cancel Chrome will not let us stop is followed by the dialog closing: the close handler takes it then.
+      if (!event.cancelable) return;
+      event.preventDefault();
+      onRequest();
+    },
+    onClose: (event: { currentTarget: HTMLDialogElement }) => {
+      const dialog = event.currentTarget;
+      // React removes the dialog itself when it closes; a dialog still in the page was closed by the browser.
+      if (!dialog.isConnected) return;
+      dialog.showModal();
+      onRequest();
+    },
+  };
+}
 import { ArrowLeft, X } from 'lucide-react';
 
 /**
@@ -42,10 +66,7 @@ export function Modal({
       ref={ref}
       className={[fullScreen ? 'full-screen' : '', className ?? ''].join(' ').trim() || undefined}
       aria-labelledby="dialog-title"
-      onCancel={event => {
-        event.preventDefault();
-        onClose();
-      }}
+      {...closeRequestHandlers(onBack ?? onClose)}
       onClick={event => {
         if (event.target === ref.current) onClose();
       }}
@@ -92,15 +113,7 @@ export function ConfirmDialog({
     ref.current?.showModal();
   }, []);
   return (
-    <dialog
-      ref={ref}
-      className="basic-dialog"
-      aria-labelledby="confirm-title"
-      onCancel={event => {
-        event.preventDefault();
-        onCancel();
-      }}
-    >
+    <dialog ref={ref} className="basic-dialog" aria-labelledby="confirm-title" {...closeRequestHandlers(onCancel)}>
       <h2 id="confirm-title">{title}</h2>
       <p>{text}</p>
       <div className="dialog-actions">

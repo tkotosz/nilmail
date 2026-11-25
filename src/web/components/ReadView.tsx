@@ -9,6 +9,7 @@ import type { WebGmail } from '../gmail-http.ts';
 import { problemText } from '../gmail-http.ts';
 import { Avatar } from './MailCardView.tsx';
 import { MessageBody } from './MessageBody.tsx';
+import { closeRequestHandlers } from './Modal.tsx';
 
 /** The actions in the read view's top bar, as icons, the way Gmail shows them; Reply has its own button at the bottom. */
 const topActions: ActionId[] = ['archive', 'delete', 'skip'];
@@ -151,7 +152,7 @@ export function ReadView({
 
   const newest = thread?.messages[0]?.id;
   return (
-    <dialog ref={dialog} className="read-view" aria-labelledby="read-subject" onCancel={onClose}>
+    <dialog ref={dialog} className="read-view" aria-labelledby="read-subject" {...closeRequestHandlers(onClose)}>
       <header className="read-top">
         <button type="button" className="icon-button" onClick={onClose} aria-label="Back to the deck" title="Back">
           <ArrowLeft size={22} />

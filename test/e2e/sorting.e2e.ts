@@ -824,6 +824,33 @@ test('piles reorder by dragging their handle, or with the arrow keys on it', asy
   await page.context().close();
 });
 
+test("the phone's Back, a close request to the dialog, steps up one level at a time, even pressed in a row", async () => {
+  const gmail = new FakeGmail(sampleThreads(3));
+  const { page, errors } = await open(gmail);
+  await waitForCard(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: /^Edit Unread/ }).click();
+  await openSwipe(page, 'Left');
+  await page.locator('dialog.settings-dialog').getByRole('button', { name: 'Add an action' }).click();
+  const title = () => page.locator('#dialog-title').textContent();
+  assert.equal(await title(), 'Add an action');
+  // Escape is the same close request as Android's Back; pressed in a row, Chrome lets only the first be stopped.
+  for (const expected of ['← Left swipe', 'Unread', 'Settings']) {
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(text => document.querySelector('#dialog-title')?.textContent === text, expected);
+  }
+  await page.keyboard.press('Escape');
+  await page.locator('dialog.settings-dialog').waitFor({ state: 'detached' });
+  assert.equal(await topSubject(page), 'Message number 1', 'Settings closed onto the deck');
+
+  await page.keyboard.press('ArrowUp');
+  await page.locator('dialog.read-view').waitFor();
+  await page.keyboard.press('Escape');
+  await page.locator('dialog.read-view').waitFor({ state: 'detached' });
+  assert.deepEqual(errors, []);
+  await page.context().close();
+});
+
 test('a change Gmail refuses puts the card back with a message', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
   gmail.failChanges = 500;
