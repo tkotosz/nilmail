@@ -1,6 +1,7 @@
 import { cardFromThread } from './message.ts';
 import type { Gmail } from './gmail.ts';
-import type { ActionId, GmailStep, MailCard } from './types.ts';
+import { senderSearch } from './pile.ts';
+import type { ActionId, GmailSearch, GmailStep, MailCard } from './types.ts';
 
 /** One conversation a decision changed. */
 export interface ThreadChange {
@@ -116,9 +117,6 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
   }
 }
 
-/** The Gmail search for the conversations of the deck's search that come from one sender. */
-export const senderQuery = (query: string, address: string) => `(${query}) from:"${address.replaceAll('"', '')}"`;
-
 /** How many conversations from one sender a decision can cover. */
 export const senderLimit = 100;
 
@@ -128,10 +126,10 @@ export const senderLimit = 100;
  */
 export async function findFromSender(
   gmail: Gmail,
-  query: string,
+  search: GmailSearch,
   card: MailCard,
 ): Promise<{ others: MailCard[]; more: boolean }> {
-  const { cards, more } = await loadCards(gmail, senderQuery(query, card.from.address), new Set([card.threadId]), {
+  const { cards, more } = await loadCards(gmail, senderSearch(search, card.from.address), new Set([card.threadId]), {
     limit: senderLimit - 1,
     maxPages: 3,
   });
@@ -151,7 +149,7 @@ export const needsCards = (state: DeckState) => state.more && !state.loading && 
  */
 export async function loadCards(
   gmail: Gmail,
-  query: string,
+  search: GmailSearch,
   exclude: ReadonlySet<string>,
   { limit = 15, parallel = 5, maxPages = 10 } = {},
 ): Promise<{ cards: MailCard[]; more: boolean }> {
@@ -159,7 +157,7 @@ export async function loadCards(
   let pageToken: string | undefined;
   let pages = 0;
   do {
-    const page = await gmail.listThreads(query, pageToken);
+    const page = await gmail.listThreads(search, pageToken);
     for (const id of page.ids) if (!exclude.has(id) && !ids.includes(id)) ids.push(id);
     pageToken = page.nextPageToken;
     pages++;

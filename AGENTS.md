@@ -16,6 +16,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 - `src/core/`: platform-neutral types and rules. Imports nothing from `web` or `worker`.
   - `actions.ts`: what actions change in Gmail, and their undo.
   - `deck.ts`: the deck reducer, batch loading and finding all from a sender.
+  - `pile.ts`: piles: their Gmail search, how to count them, and the default piles.
   - `message.ts`: Gmail threads to cards and read-view messages.
   - `settings.ts`, `gmail.ts`, `types.ts`.
 - `src/worker/`: the Worker entry (`index.ts`) and the sign-in routes (`auth.ts`).
@@ -25,7 +26,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
   - `gmail-http.ts`: the Gmail client.
   - `session.ts`: access tokens.
   - `unsubscribe.ts`: unsubscribing from a sender, from the browser.
-  - `components/`: the swipe card, mail card, read view and settings.
+  - `components/`: the swipe card, mail card, read view, and settings with the pile list, pile editor and label picker.
 - `test/`: unit tests (`*.test.ts`) and the end-to-end walkthrough (`e2e/`, with `fake-gmail.ts`).
 - `scripts/`: the esbuild build, the dev server and the icon renderer. `public/`: static files and the service worker.
 
@@ -35,7 +36,7 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 - **Unsubscribe goes from the browser.** The one-click request (RFC 8058) is a `no-cors` POST straight to the sender, so the app cannot read the answer and says "sent", never "confirmed". Unsubscribe is a button, not a swipe: only conversations with a `List-Unsubscribe` header offer it. A `mailto:` unsubscribe opens the user's mail app; sending mail from nilmail would need a permission beyond `gmail.modify`.
 - **Gmail changes go through `stepsFor` and `undoSteps`.** An action removes only labels the thread has, so its undo restores the thread exactly. Cover new actions in `test/actions.test.ts`.
 - **One decision at a time.** `Sorter` sends every decision's Gmail changes through its queue, so an undo cannot overtake the change it undoes. A decision that covers all from a sender changes its threads a few at a time inside one queued task (`applyChanges`), and a thread Gmail refuses goes back to the deck alone. Do not call `applyToGmail` or `applyChanges` outside the queue.
-- **Decks load in batches.** The Unread deck uses the search from Settings, the Read deck `readQuery`; both go through `loadCards`, a few conversations at a time, and the header's counts come from the inbox label alone. An inbox can hold thousands of read conversations: never list or fetch a whole search. Cover loading changes in `test/deck.test.ts`.
+- **Piles load in batches.** A pile's filters become a search (`pileSearch`): labels it must have go by id in `labelIds`, so their names never enter the search; labels it must not have use Gmail's name form (`searchLabelName`). Every pile loads through `loadCards`, a few conversations at a time: a pile can match thousands of conversations, so never list or fetch a whole search. A count is exact only when `pileCount` finds a label's numbers that give it; otherwise it is Gmail's estimate and the picker must say so (`~N`). Cover changes in `test/pile.test.ts` and `test/deck.test.ts`.
 - **The deck reducer is the only place cards move.** Screens dispatch `DeckEvent`s. Cover reducer changes in `test/deck.test.ts`.
 - **Email HTML stays sandboxed.** `MessageBody` renders it in an iframe without `allow-scripts`, with a content security policy that blocks scripts and, unless images are allowed, remote images. The frame has `allow-same-origin` only so the page can size it. Never add `allow-scripts` while `allow-same-origin` is there.
 - **The permission is `gmail.modify`.** It can read, label, archive and move to the Bin, but not delete permanently. Asking for more needs a new consent from every user. `openid email` is there only so the callback learns the account's address.
@@ -43,5 +44,6 @@ A swipe-to-sort app for a Gmail inbox: a React app that calls the Gmail API dire
 - **The privacy page must stay true.** `public/privacy.html` tells users what nilmail accesses, where data goes and what the server handles; Google's sign-in settings link to it. Update it (and its date) with any change to permissions, cookies, storage or data flow.
 - **No `wrangler.jsonc`.** A Wrangler config file would become the source of truth for the Pages project's plain-text variables and drop `ALLOWED_EMAILS` set in the dashboard. Deploys pass the project name and the output folder on the command line instead.
 - **Sign-in cookies.** The session cookie is `nilmail_session` (path `/api`, SameSite=Strict), holding `{ email, refreshToken }` encrypted; the sign-in state cookie is `nilmail_state` (path `/api/auth`, SameSite=Lax, since Google's redirect back is a cross-site navigation). Changing `SESSION_KEY` signs every device out.
-- **Saved settings.** They live in `localStorage` under `nilmail.settings.v2` and pass through `restoreSettings`. Changing their shape needs a new key or handling in `restoreSettings`; settings from `nilmail.settings.v1` keep all but their swipes. Each deck (`DeckKind`) has its own swipes, limited to `deckActionIds`. A label swipe keeps its label's id and name per deck and direction; a label swipe without a valid label falls back to the default swipe.
+- **Saved settings.** They live in `localStorage` under `nilmail.settings.v3` and pass through `restoreSettings`. Changing their shape needs a new key or handling in `restoreSettings`; settings from before piles (`v2`, `v1`) become the Unread and Read piles. Labels are saved with id and name; `withCurrentLabels` refreshes the names when the app starts and drops deleted labels. Add labels needs at least one label and Remove label exactly one; otherwise the swipe falls back to its default.
+- **Label actions only touch what they must.** Remove all labels removes only labels the user made (`isUserLabel`, ids starting `Label_`), never INBOX, UNREAD, STARRED or categories. Cover action changes in `test/actions.test.ts`.
 - **TypeScript 6.** typescript-eslint does not support TypeScript 7 yet; keep `typescript` on 6.x until it does.

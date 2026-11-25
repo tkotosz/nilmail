@@ -670,32 +670,6 @@ dialog::backdrop {
   margin-bottom: 8px;
   padding: 0;
 }
-/* Unread | Read: which deck's swipes the form shows. */
-.deck-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--page);
-  border: 1px solid var(--line);
-}
-.deck-switch button {
-  min-height: 36px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 0.92rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-.deck-switch button[aria-checked='true'] {
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: 0 1px 3px #2a1d1426;
-}
 .gesture-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -717,6 +691,9 @@ dialog::backdrop {
 }
 .gesture-cell select,
 .gesture-cell input,
+.gesture-choice select,
+.filter-field select,
+.filter-field input,
 .query-field input {
   min-height: 44px;
   border: 1px solid var(--line);
@@ -731,6 +708,142 @@ dialog::backdrop {
   align-items: center;
   gap: 10px;
   min-height: 36px;
+}
+.toggle.small {
+  min-height: 30px;
+  font-size: 0.88rem;
+}
+
+/* Piles */
+.pile-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pile-list li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.pile-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--page);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pile-row:hover {
+  background: #ebe7df;
+}
+.pile-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pile-row-text span,
+.pile-summary {
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+.pile-row svg {
+  flex: none;
+  color: var(--muted);
+}
+.pile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.back-button {
+  align-self: flex-start;
+}
+.quiet-button.danger {
+  align-self: flex-start;
+  color: var(--red);
+}
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.label-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.label-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.label-chips li {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  padding: 0 4px 0 11px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--plum) 35%, transparent);
+  background: color-mix(in srgb, var(--plum) 8%, white);
+  color: var(--plum);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+.label-chips button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.label-chips button:hover {
+  background: color-mix(in srgb, var(--plum) 15%, white);
+}
+.label-new {
+  display: flex;
+  gap: 6px;
+}
+.label-new input {
+  flex: 1;
+  min-width: 0;
+}
+.label-picker select,
+.label-new input {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--page);
+  padding: 0 10px;
+  color: var(--ink);
+  font-size: 0.95rem;
 }
 .toggle input {
   width: 20px;

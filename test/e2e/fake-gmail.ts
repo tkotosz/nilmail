@@ -66,15 +66,30 @@ export class FakeGmail {
     return this.threads.get(id)!.labelIds;
   }
 
+  /** The label's name as Gmail search writes it: spaces become hyphens, in any case. */
+  private searchName(id: string): string | undefined {
+    return this.labelList
+      .find(label => label.id === id)
+      ?.name.toLowerCase()
+      .replace(/\s+/g, '-');
+  }
+
   /**
-   * Unread inbox threads, or read ones for a search with `is:read`; of these, a search with `from:"address"` matches only
-   * that sender's.
+   * Threads outside the Bin that have every label of `labelIds` and match the search terms the app writes: `is:unread`,
+   * `is:read`, `in:inbox`, `-in:inbox`, `-label:"name"` and `from:"address"`. Other terms are ignored.
    */
-  private matching(query = ''): FakeThread[] {
-    const from = /from:"([^"]+)"/.exec(query)?.[1];
-    const read = query.includes('is:read');
+  private matching(q = '', labelIds: string[] = []): FakeThread[] {
+    const from = /from:"([^"]+)"/.exec(q)?.[1];
+    const lacking = [...q.matchAll(/-label:"([^"]+)"/g)].map(match => match[1]!.toLowerCase());
+    const has = (thread: FakeThread, label: string) => thread.labelIds.includes(label);
     return [...this.threads.values()]
-      .filter(thread => thread.labelIds.includes('INBOX') && thread.labelIds.includes('UNREAD') !== read)
+      .filter(thread => !has(thread, 'TRASH'))
+      .filter(thread => labelIds.every(label => has(thread, label)))
+      .filter(thread => !/(^|\s)is:unread/.test(q) || has(thread, 'UNREAD'))
+      .filter(thread => !/(^|\s)is:read/.test(q) || !has(thread, 'UNREAD'))
+      .filter(thread => !/(^|\s)in:inbox/.test(q) || has(thread, 'INBOX'))
+      .filter(thread => !/(^|\s)-in:inbox/.test(q) || !has(thread, 'INBOX'))
+      .filter(thread => !thread.labelIds.some(label => lacking.includes(this.searchName(label) ?? '')))
       .filter(thread => !from || thread.from.includes(`<${from}>`))
       .sort((a, b) => b.date - a.date);
   }
@@ -135,12 +150,18 @@ export class FakeGmail {
       this.labelList.push(label);
       return reply(label);
     }
-    if (path === '/labels/INBOX') {
-      const inbox = [...this.threads.values()].filter(thread => thread.labelIds.includes('INBOX'));
-      return reply({ id: 'INBOX', threadsTotal: inbox.length, threadsUnread: this.matching().length });
+    const label = /^\/labels\/([^/]+)$/.exec(path);
+    if (label && request.method() === 'GET') {
+      const id = decodeURIComponent(label[1]!);
+      const labeled = this.matching('', [id]);
+      return reply({
+        id,
+        threadsTotal: labeled.length,
+        threadsUnread: labeled.filter(thread => thread.labelIds.includes('UNREAD')).length,
+      });
     }
     if (path === '/threads') {
-      const all = this.matching(url.searchParams.get('q') ?? '');
+      const all = this.matching(url.searchParams.get('q') ?? '', url.searchParams.getAll('labelIds'));
       const size = Number(url.searchParams.get('maxResults') ?? 100);
       const start = Number(url.searchParams.get('pageToken') ?? 0);
       const page = all.slice(start, start + size);

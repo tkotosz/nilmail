@@ -4,12 +4,21 @@ export type Direction = 'left' | 'right' | 'up' | 'down';
 export const directions: readonly Direction[] = ['left', 'down', 'up', 'right'];
 
 /** What the user can do with a conversation. */
-export type ActionId = 'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip' | 'label' | 'unsubscribe';
-
-export const actionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip', 'label', 'unsubscribe'];
+export type ActionId =
+  'archive' | 'delete' | 'markRead' | 'read' | 'reply' | 'skip' | 'addLabels' | 'removeLabel' | 'removeAllLabels' | 'unsubscribe';
 
 /** The actions a swipe can do. Unsubscribe is left out: only some conversations offer it, so it is a button on them. */
-export const gestureActionIds: readonly ActionId[] = ['archive', 'delete', 'markRead', 'read', 'reply', 'skip', 'label'];
+export const gestureActionIds: readonly ActionId[] = [
+  'archive',
+  'delete',
+  'markRead',
+  'read',
+  'reply',
+  'skip',
+  'addLabels',
+  'removeLabel',
+  'removeAllLabels',
+];
 
 /** A Gmail label the user made, such as "Later". */
 export interface GmailLabel {
@@ -48,27 +57,48 @@ export interface MailCard {
 /** One change to a conversation in Gmail. */
 export type GmailStep = { op: 'modify'; add: string[]; remove: string[] } | { op: 'trash' } | { op: 'untrash' };
 
-/** Which conversations the deck holds: unread ones (the search from Settings) or read ones in the inbox. */
-export type DeckKind = 'unread' | 'read';
+/** What one swipe does. */
+export interface Swipe {
+  action: ActionId;
+  /** Add labels: the labels to add, one or more. Remove label: the one label to remove. Empty for other actions. */
+  labels: GmailLabel[];
+  /** Add labels: also take the conversation out of the inbox. */
+  archive: boolean;
+}
 
-export const deckKinds: readonly DeckKind[] = ['unread', 'read'];
+/** Which conversations a pile holds; every filter set must match. */
+export interface PileFilters {
+  read: 'unread' | 'read' | 'any';
+  where: 'inbox' | 'archived' | 'anywhere';
+  /** The conversation has every one of these labels. */
+  hasLabels: GmailLabel[];
+  /** The conversation has none of these labels. */
+  lacksLabels: GmailLabel[];
+  /** Any Gmail search, added as written, such as `from:shop.example`. */
+  search: string;
+}
 
-/** What each swipe does in one deck. */
-export interface Swipes {
-  gestures: Record<Direction, ActionId>;
-  /** The label of each swipe that labels; every direction set to `label` has one. */
-  labels: Partial<Record<Direction, GmailLabel>>;
+/** A saved set of filters with its own swipes; the header picker lists them. */
+export interface Pile {
+  id: string;
+  name: string;
+  filters: PileFilters;
+  swipes: Record<Direction, Swipe>;
 }
 
 export interface Settings {
-  /** Each deck has its own swipes. */
-  swipes: Record<DeckKind, Swipes>;
+  /** In the picker's order; the app opens on the first. There is always at least one. */
+  piles: Pile[];
   /** Archive also removes UNREAD, so archived mail does not stay unread in All Mail. */
   archiveMarksRead: boolean;
   /** Remote images in the read view load without asking. */
   loadImages: boolean;
-  /** The Gmail search that fills the deck. */
-  query: string;
+}
+
+/** A thread search: Gmail's search text, and labels every thread must have (matched by id, whatever their names). */
+export interface GmailSearch {
+  q: string;
+  labelIds: string[];
 }
 
 /** One message of a conversation, ready for the read view. */

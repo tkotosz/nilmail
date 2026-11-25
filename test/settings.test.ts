@@ -1,81 +1,107 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deckActionIds, defaultQuery, defaultSettings, restoreSettings } from '../src/core/settings.ts';
+import { defaultSwipes, newPile, readPile, swipe, unreadPile } from '../src/core/pile.ts';
+import { defaultSettings, restoreSettings, withCurrentLabels } from '../src/core/settings.ts';
 
-test('missing or broken settings fall back to the defaults', () => {
+const later = { id: 'Label_1', name: 'Later' };
+const bills = { id: 'Label_2', name: 'Bills' };
+
+test('missing or broken settings fall back to the Unread and Read piles', () => {
   assert.deepEqual(restoreSettings(null), defaultSettings);
   assert.deepEqual(restoreSettings('nonsense'), defaultSettings);
+  assert.deepEqual(restoreSettings({ piles: [{ name: 'No id' }, { id: 'x', name: '  ' }] }).piles, defaultSettings.piles);
   assert.deepEqual(
-    restoreSettings({
-      swipes: { unread: { gestures: { left: 'explode', up: 'skip' } }, read: 'nonsense' },
-      archiveMarksRead: 'yes',
-      loadImages: false,
-      query: '   ',
-    }),
-    {
-      ...defaultSettings,
-      swipes: {
-        unread: { gestures: { ...defaultSettings.swipes.unread.gestures, up: 'skip' }, labels: {} },
-        read: defaultSettings.swipes.read,
-      },
-      loadImages: false,
-      query: defaultQuery,
-    },
+    defaultSettings.piles.map(pile => pile.name),
+    ['Unread', 'Read'],
   );
+  assert.equal(unreadPile.swipes.down.action, 'markRead');
+  assert.equal(readPile.swipes.down.action, 'skip');
 });
 
-test('the decks swipe differently by default: down marks unread mail read and skips read mail', () => {
-  assert.deepEqual(defaultSettings.swipes.unread.gestures, { right: 'archive', left: 'delete', up: 'read', down: 'markRead' });
-  assert.deepEqual(defaultSettings.swipes.read.gestures, { right: 'archive', left: 'delete', up: 'read', down: 'skip' });
-  assert.equal(defaultSettings.archiveMarksRead, true);
-  assert.equal(defaultSettings.query, 'in:inbox is:unread');
-});
-
-test('each deck keeps its own swipes', () => {
+test('a saved pile keeps its filters and swipes; anything invalid falls back', () => {
   const restored = restoreSettings({
-    swipes: { unread: { gestures: { down: 'skip' } }, read: { gestures: { down: 'archive' } } },
-  });
-  assert.equal(restored.swipes.unread.gestures.down, 'skip');
-  assert.equal(restored.swipes.read.gestures.down, 'archive');
-});
-
-test('settings saved before each deck had its own swipes keep all but their swipes', () => {
-  const restored = restoreSettings({
-    gestures: { right: 'delete', left: 'archive', up: 'read', down: 'skip' },
-    labels: {},
+    piles: [
+      {
+        id: 'p1',
+        name: ' Accounting ',
+        filters: {
+          read: 'any',
+          where: 'nowhere',
+          hasLabels: [later, later, { id: '' }],
+          lacksLabels: 'x',
+          search: ' older_than:30d ',
+        },
+        swipes: {
+          right: { action: 'removeLabel', labels: [later, bills] },
+          left: { action: 'addLabels', labels: [later, bills], archive: false },
+          up: { action: 'addLabels', labels: [] },
+          down: { action: 'unsubscribe' },
+        },
+      },
+      { id: 'p1', name: 'Same id again' },
+    ],
     archiveMarksRead: false,
-    loadImages: false,
-    query: 'in:inbox is:unread category:promotions',
   });
-  assert.deepEqual(restored, {
-    ...defaultSettings,
-    archiveMarksRead: false,
-    loadImages: false,
-    query: 'in:inbox is:unread category:promotions',
+  assert.equal(restored.piles.length, 1, 'ids are unique');
+  assert.deepEqual(restored.piles[0], {
+    id: 'p1',
+    name: 'Accounting',
+    filters: { read: 'any', where: 'inbox', hasLabels: [later], lacksLabels: [], search: 'older_than:30d' },
+    swipes: {
+      right: swipe('removeLabel', [later]),
+      left: swipe('addLabels', [later, bills], false),
+      up: defaultSwipes.up,
+      down: defaultSwipes.down,
+    },
   });
+  assert.equal(restored.archiveMarksRead, false);
 });
 
-test('unsubscribe cannot be a swipe, and the Read deck has nothing to mark read', () => {
-  assert.ok(!deckActionIds('unread').includes('unsubscribe'), 'not every conversation offers it');
-  assert.ok(deckActionIds('unread').includes('markRead'));
-  assert.ok(!deckActionIds('read').includes('markRead'));
-  const restored = restoreSettings({
-    swipes: { unread: { gestures: { left: 'unsubscribe' } }, read: { gestures: { up: 'markRead' } } },
-  });
-  assert.equal(restored.swipes.unread.gestures.left, 'delete');
-  assert.equal(restored.swipes.read.gestures.up, 'read');
-});
-
-test('a label swipe keeps its label; without one it falls back, and other swipes keep none', () => {
-  const later = { id: 'Label_1', name: 'Later' };
+test('settings from before piles become the Unread and Read piles, with their swipes and search', () => {
   const restored = restoreSettings({
     swipes: {
-      read: { gestures: { down: 'label', left: 'label', up: 'archive' }, labels: { down: later, left: { id: '' }, up: later } },
-      unread: { gestures: { down: 'label' } },
+      unread: { gestures: { right: 'archive', left: 'label', up: 'read', down: 'markRead' }, labels: { left: later } },
+      read: { gestures: { right: 'delete', left: 'archive', up: 'read', down: 'skip' } },
     },
+    archiveMarksRead: false,
+    loadImages: false,
+    query: 'in:inbox is:unread',
   });
-  assert.deepEqual(restored.swipes.read.gestures, { right: 'archive', left: 'delete', up: 'archive', down: 'label' });
-  assert.deepEqual(restored.swipes.read.labels, { down: later });
-  assert.equal(restored.swipes.unread.gestures.down, 'markRead');
-  assert.deepEqual(restored.swipes.unread.labels, {});
+  assert.deepEqual(restored.piles[0], {
+    ...unreadPile,
+    swipes: { ...unreadPile.swipes, left: swipe('addLabels', [later], true) },
+  });
+  assert.deepEqual(restored.piles[1], {
+    ...readPile,
+    swipes: { ...readPile.swipes, right: swipe('delete'), left: swipe('archive') },
+  });
+  assert.equal(restored.loadImages, false);
+
+  const custom = restoreSettings({ query: 'in:inbox is:unread category:promotions' });
+  assert.deepEqual(custom.piles[0]!.filters, {
+    read: 'any',
+    where: 'anywhere',
+    hasLabels: [],
+    lacksLabels: [],
+    search: 'in:inbox is:unread category:promotions',
+  });
+  assert.deepEqual(custom.piles[0]!.swipes, unreadPile.swipes, 'settings older still start from the default swipes');
+});
+
+test('labels take their current names from Gmail, and a deleted one drops out', () => {
+  const pile = {
+    ...newPile('p1', 'Accounting'),
+    filters: { ...newPile('p1', 'x').filters, hasLabels: [later], lacksLabels: [bills] },
+    swipes: { ...defaultSwipes, right: swipe('removeLabel', [later]), left: swipe('addLabels', [later, bills]) },
+  };
+  const renamed = withCurrentLabels({ ...defaultSettings, piles: [pile] }, [{ id: 'Label_1', name: 'Todo accounting' }]);
+  const updated = renamed.piles[0]!;
+  assert.deepEqual(updated.filters.hasLabels, [{ id: 'Label_1', name: 'Todo accounting' }]);
+  assert.deepEqual(updated.filters.lacksLabels, []);
+  assert.deepEqual(updated.swipes.right, swipe('removeLabel', [{ id: 'Label_1', name: 'Todo accounting' }]));
+  assert.deepEqual(updated.swipes.left, swipe('addLabels', [{ id: 'Label_1', name: 'Todo accounting' }]));
+
+  const gone = withCurrentLabels({ ...defaultSettings, piles: [pile] }, []).piles[0]!;
+  assert.deepEqual(gone.swipes.right, swipe('skip'), 'a swipe without its label skips');
+  assert.deepEqual(gone.swipes.left, swipe('skip'));
 });

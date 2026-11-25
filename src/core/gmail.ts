@@ -1,4 +1,4 @@
-import type { GmailStep } from './types.ts';
+import type { GmailSearch, GmailStep } from './types.ts';
 
 // The parts of the Gmail API's thread resource this app reads.
 // https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.threads
@@ -34,7 +34,7 @@ export interface GmailThread {
 
 /** The Gmail calls the core needs; the web app implements them over HTTP. */
 export interface Gmail {
-  listThreads(query: string, pageToken?: string): Promise<{ ids: string[]; nextPageToken?: string }>;
+  listThreads(search: GmailSearch, pageToken?: string): Promise<{ ids: string[]; nextPageToken?: string }>;
   /** `metadata` brings only the headers a card shows, such as From and Subject; `full` brings the bodies too. */
   getThread(id: string, format: 'metadata' | 'full'): Promise<GmailThread>;
   modifyThread(id: string, add: string[], remove: string[]): Promise<void>;

@@ -1,5 +1,5 @@
 import type { Gmail, GmailThread } from '../core/gmail.ts';
-import type { GmailLabel } from '../core/types.ts';
+import type { GmailLabel, GmailSearch } from '../core/types.ts';
 import { SessionError, type Session } from './session.ts';
 
 // The Gmail API over HTTP, called straight from the browser with the session's access token.
@@ -19,18 +19,29 @@ export class GmailError extends Error {
   }
 }
 
-export interface InboxCounts {
+/** A label's own numbers of conversations. */
+export interface LabelCounts {
+  total: number;
   unread: number;
-  read: number;
 }
 
 export interface WebGmail extends Gmail {
-  /** How many conversations in the inbox are unread and read, from the inbox label alone, without listing any. */
-  inboxCounts(): Promise<InboxCounts>;
+  /** How many conversations have the label, and how many of those are unread, without listing any. */
+  labelCounts(labelId: string): Promise<LabelCounts>;
+  /** Gmail's estimate of how many conversations match the search: one list call asking for a single result. */
+  estimateThreads(search: GmailSearch): Promise<number>;
   emailAddress(): Promise<string>;
   /** The labels the user made, by name. */
   userLabels(): Promise<GmailLabel[]>;
   createLabel(name: string): Promise<GmailLabel>;
+}
+
+/** A thread search as list parameters: the search text, and each label the threads must have. */
+function searchParams(search: GmailSearch, maxResults: number): URLSearchParams {
+  const params = new URLSearchParams({ maxResults: String(maxResults) });
+  if (search.q) params.set('q', search.q);
+  for (const id of search.labelIds) params.append('labelIds', id);
+  return params;
 }
 
 export function httpGmail(session: Session): WebGmail {
@@ -62,8 +73,8 @@ export function httpGmail(session: Session): WebGmail {
   }
 
   return {
-    async listThreads(query, pageToken) {
-      const params = new URLSearchParams({ q: query, maxResults: '50' });
+    async listThreads(search, pageToken) {
+      const params = searchParams(search, 50);
       if (pageToken) params.set('pageToken', pageToken);
       const page = await call<{ threads?: { id: string }[]; nextPageToken?: string }>(`/threads?${params}`);
       return { ids: (page.threads ?? []).map(thread => thread.id), nextPageToken: page.nextPageToken };
@@ -85,11 +96,14 @@ export function httpGmail(session: Session): WebGmail {
     async untrashThread(id) {
       await call(`/threads/${encodeURIComponent(id)}/untrash`, { method: 'POST' });
     },
-    async inboxCounts() {
+    async labelCounts(labelId) {
       const { threadsTotal = 0, threadsUnread = 0 } = await call<{ threadsTotal?: number; threadsUnread?: number }>(
-        '/labels/INBOX',
+        `/labels/${encodeURIComponent(labelId)}`,
       );
-      return { unread: threadsUnread, read: Math.max(0, threadsTotal - threadsUnread) };
+      return { total: threadsTotal, unread: threadsUnread };
+    },
+    async estimateThreads(search) {
+      return (await call<{ resultSizeEstimate?: number }>(`/threads?${searchParams(search, 1)}`)).resultSizeEstimate ?? 0;
     },
     async emailAddress() {
       return (await call<{ emailAddress: string }>('/profile')).emailAddress;

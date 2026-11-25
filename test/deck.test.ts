@@ -7,12 +7,11 @@ import {
   loadCards,
   needsCards,
   reduceDeck,
-  senderQuery,
   type DeckEvent,
   type DeckState,
 } from '../src/core/deck.ts';
 import { applyChanges, type Gmail, type GmailThread } from '../src/core/gmail.ts';
-import type { ActionId, MailCard } from '../src/core/types.ts';
+import type { ActionId, GmailSearch, MailCard } from '../src/core/types.ts';
 
 const card = (threadId: string, labelIds = ['INBOX', 'UNREAD']): MailCard => ({
   threadId,
@@ -151,7 +150,7 @@ function fakeGmail(pages: string[][]): Gmail & { requested: string[] } {
   const requested: string[] = [];
   return {
     requested,
-    async listThreads(_query, pageToken) {
+    async listThreads(_search, pageToken) {
       const index = Number(pageToken ?? 0);
       return { ids: pages[index] ?? [], nextPageToken: index + 1 < pages.length ? String(index + 1) : undefined };
     },
@@ -171,7 +170,7 @@ test('loading starts from the first page and pages past threads already seen', a
     ['c', 'd'],
     ['e', 'f'],
   ]);
-  const result = await loadCards(gmail, 'in:inbox', new Set(['a', 'b', 'c']), { limit: 2, parallel: 1 });
+  const result = await loadCards(gmail, { q: 'in:inbox', labelIds: [] }, new Set(['a', 'b', 'c']), { limit: 2, parallel: 1 });
   assert.deepEqual(
     result.cards.map(item => item.threadId),
     ['d', 'e'],
@@ -179,14 +178,14 @@ test('loading starts from the first page and pages past threads already seen', a
   assert.equal(result.more, true);
   assert.deepEqual(gmail.requested, ['d', 'e'], 'only the new threads are fetched');
 
-  const last = await loadCards(gmail, 'in:inbox', new Set(['a', 'b', 'c', 'd', 'e']), { limit: 2 });
+  const last = await loadCards(gmail, { q: 'in:inbox', labelIds: [] }, new Set(['a', 'b', 'c', 'd', 'e']), { limit: 2 });
   assert.deepEqual(
     last.cards.map(item => item.threadId),
     ['f'],
   );
   assert.equal(last.more, false);
 
-  const none = await loadCards(gmail, 'in:inbox', new Set(['a', 'b', 'c', 'd', 'e', 'f']));
+  const none = await loadCards(gmail, { q: 'in:inbox', labelIds: [] }, new Set(['a', 'b', 'c', 'd', 'e', 'f']));
   assert.deepEqual(none, { cards: [], more: false });
 });
 
@@ -197,7 +196,7 @@ test('a huge inbox loads one batch at a time and never lists more than ten pages
   const list = gmail.listThreads;
   gmail.listThreads = (query, pageToken) => (lists++, list(query, pageToken));
 
-  const first = await loadCards(gmail, 'in:inbox is:read', new Set());
+  const first = await loadCards(gmail, { q: 'in:inbox is:read', labelIds: [] }, new Set());
   assert.equal(first.cards.length, 15);
   assert.equal(first.more, true);
   assert.equal(gmail.requested.length, 15, 'only one batch of threads is fetched');
@@ -206,29 +205,24 @@ test('a huge inbox loads one batch at a time and never lists more than ten pages
   // Skipped read threads still match the search, so a later batch has to page past them, but only so far.
   lists = 0;
   gmail.requested.length = 0;
-  const deep = await loadCards(gmail, 'in:inbox is:read', new Set(ids.slice(0, 2000)));
+  const deep = await loadCards(gmail, { q: 'in:inbox is:read', labelIds: [] }, new Set(ids.slice(0, 2000)));
   assert.equal(lists, 10);
   assert.deepEqual(deep, { cards: [], more: false });
   assert.equal(gmail.requested.length, 0);
 });
 
-test('the sender search narrows the deck search to one address', () => {
-  assert.equal(senderQuery('in:inbox is:unread', 'ann@example.com'), '(in:inbox is:unread) from:"ann@example.com"');
-  assert.equal(senderQuery('label:a OR label:b', 'odd"@example.com'), '(label:a OR label:b) from:"odd@example.com"');
-});
-
 test('finding all from a sender leaves out the card itself', async () => {
   const gmail = fakeGmail([['a', 'b', 'c']]);
-  const queries: string[] = [];
+  const searches: GmailSearch[] = [];
   const list = gmail.listThreads;
-  gmail.listThreads = (query, pageToken) => (queries.push(query), list(query, pageToken));
-  const result = await findFromSender(gmail, 'in:inbox', card('b'));
+  gmail.listThreads = (search, pageToken) => (searches.push(search), list(search, pageToken));
+  const result = await findFromSender(gmail, { q: 'in:inbox', labelIds: ['Label_1'] }, card('b'));
   assert.deepEqual(
     result.others.map(item => item.threadId),
     ['a', 'c'],
   );
   assert.equal(result.more, false);
-  assert.deepEqual(queries, ['(in:inbox) from:"ann@example.com"']);
+  assert.deepEqual(searches, [{ q: 'in:inbox from:"ann@example.com"', labelIds: ['Label_1'] }]);
 });
 
 test('applying changes to many threads goes on past a refusal and reports which threads failed', async () => {

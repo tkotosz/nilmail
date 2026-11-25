@@ -22,12 +22,13 @@ browser                                              Cloudflare
 ## Core
 
 `src/core` holds plain types and functions with no browser or Worker dependencies.
-- `types.ts`: cards, actions, settings and the read view's message shape.
+- `types.ts`: cards, actions, swipes, piles, settings and the read view's message shape.
 - `actions.ts`: what each action changes in Gmail, as a list of steps, and the steps that undo them.
 - `deck.ts`: the deck as a reducer (cards waiting, threads seen, undo history) and `loadCards`, which fetches the next batch through the `Gmail` interface.
+- `pile.ts`: a pile's filters as a Gmail search (search text plus required label ids), how a pile can be counted, and the default piles.
 - `gmail.ts`: the parts of Gmail's thread resource the app reads, the `Gmail` interface, and `applyToGmail`.
 - `message.ts`: turning Gmail threads into cards and read-view messages (headers, MIME parts, base64url, character sets).
-- `settings.ts`: defaults and restoring saved settings.
+- `settings.ts`: defaults, restoring saved settings (and converting those from before piles), and refreshing label names.
 
 ## Worker
 
@@ -48,7 +49,9 @@ The Worker stores nothing and never sees mail. The allow-list comes from the `AL
 `App.tsx` checks the sign-in by asking Gmail for the account's address, then shows the welcome screen or the `Sorter`.
 
 `Sorter.tsx` owns the deck reducer and wires it to Gmail:
+- It shows one pile at a time; choosing another, or changing the shown pile's filters, starts the deck again.
 - It loads batches when the deck runs low.
+- It counts each pile from a label's numbers when they give an exact count, otherwise from Gmail's estimate, which the picker marks as such.
 - It applies each decision to the deck at once, and sends the Gmail steps through a queue that runs one decision at a time.
 - When Gmail refuses a change, the card returns to the deck.
 
@@ -64,6 +67,7 @@ The read view renders HTML email in a sandboxed frame with no scripts and a rest
 - **Optimistic decisions, one at a time.** The deck reacts at once; the queue keeps an undo from overtaking the change it undoes.
 - **A decision can cover many conversations.** "All from sender" finds the sender's conversations in the deck's search and makes one decision of them, with one undo. Their threads change three at a time to stay within Gmail's per-user rate limit, and only the threads Gmail refuses go back to the deck.
 - **Undo restores exact labels.** An action removes only labels the thread had, and its undo adds back only those, so undo never leaves a thread different from before.
+- **Piles search by label id.** Labels a pile must have go in the list call's `labelIds`, so a renamed label or one with spaces still matches. Only labels a pile must not have go in the search text, in Gmail's name form, with names refreshed from Gmail when the app starts.
 - **Every batch starts from the first page.** Decisions change which threads match the search, which makes old page tokens skip threads; the deck remembers what it has seen instead.
 - **Unsubscribe from the browser, unconfirmed.** The one-click request goes straight from the browser in `no-cors` mode, so sender links never reach the Worker; the cost is that the app cannot read the sender's answer.
 - **Folders instead of workspaces.** One app and one build; the folder boundary keeps the core platform-neutral without package wiring.
