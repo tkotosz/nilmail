@@ -20,7 +20,7 @@ import { InstallButton } from './components/InstallButton.tsx';
 import { MailCardView } from './components/MailCardView.tsx';
 import { Modal } from './components/Modal.tsx';
 import { ReadView } from './components/ReadView.tsx';
-import { SettingsForm } from './components/SettingsForm.tsx';
+import { SettingsForm, settingsOpened } from './components/SettingsForm.tsx';
 import { SwipeCard, type SwipeAction, type SwipeCardHandle } from './components/SwipeCard.tsx';
 import { useSwipeKeys } from './components/useSwipeKeys.ts';
 import { gmailLink, problemText, type LabelCounts, type WebGmail } from './gmail-http.ts';
@@ -181,7 +181,32 @@ export function Sorter({
     reload();
   }
 
+  /** Opens a layer over the deck with a history entry, so the phone's Back closes it instead of leaving the app. */
+  function openLayer(layer: 'read' | 'install') {
+    history.pushState({ nilmail: layer }, '');
+  }
+
+  function openSettings() {
+    history.pushState(settingsOpened, '');
+    setDialog('settings');
+  }
+
+  // The phone's Back closes the read view and the install help. Settings follows the history itself (SettingsForm).
+  const onHistory = useEffectEvent((state: unknown) => {
+    const layer = (state as { nilmail?: string } | null)?.nilmail;
+    if (layer !== 'read') setReading(null);
+    if (layer !== 'install' && dialog === 'install') setDialog(null);
+  });
+  useEffect(() => {
+    // A reload starts on the deck, whatever the history entry was.
+    if ((history.state as { nilmail?: string } | null)?.nilmail) history.replaceState(null, '');
+    const listener = (event: PopStateEvent) => onHistory(event.state);
+    window.addEventListener('popstate', listener);
+    return () => window.removeEventListener('popstate', listener);
+  }, []);
+
   function openReadView(card: MailCard) {
+    openLayer('read');
     setReading(card);
     setCardVersion(version => version + 1);
     const steps = stepsFor(swipeOf('read'), card);
@@ -293,14 +318,13 @@ export function Sorter({
           <button type="button" className="icon-button" onClick={reload} aria-label="Refresh" title="Refresh">
             <RefreshCw size={21} />
           </button>
-          <InstallButton onAppleHelp={() => setDialog('install')} />
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => setDialog('settings')}
-            aria-label="Settings"
-            title="Settings"
-          >
+          <InstallButton
+            onAppleHelp={() => {
+              openLayer('install');
+              setDialog('install');
+            }}
+          />
+          <button type="button" className="icon-button" onClick={openSettings} aria-label="Settings" title="Settings">
             <SettingsIcon size={21} />
           </button>
         </div>
@@ -425,10 +449,11 @@ export function Sorter({
           gmail={gmail}
           email={email}
           loadImages={settings.loadImages}
-          onClose={() => setReading(null)}
+          onClose={() => history.back()}
           onAction={action => {
             const current = deck.cards.find(item => item.threadId === reading.threadId) ?? reading;
             setReading(null);
+            history.back();
             decide(current, swipeOf(action));
           }}
         />
@@ -450,7 +475,7 @@ export function Sorter({
       )}
 
       {dialog === 'install' && (
-        <Modal name="Install nilmail" onClose={() => setDialog(null)}>
+        <Modal name="Install nilmail" onClose={() => history.back()}>
           <ol className="install-steps">
             <li>
               Tap <strong>Share</strong> <Share size={16} aria-label="(the square with an arrow)" /> in the browser's toolbar.

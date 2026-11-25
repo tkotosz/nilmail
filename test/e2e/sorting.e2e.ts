@@ -107,6 +107,17 @@ const waitForCard = (page: Page) => page.locator('.swipe-card .mail-card').waitF
 const openSwipe = (page: Page, direction: string) =>
   page.getByRole('button', { name: new RegExp(`^${direction} swipe:`) }).click();
 
+/** The Settings header's Back button, which shows on every page below the list of piles. */
+const settingsBack = (page: Page) =>
+  page.locator('dialog.settings-dialog').getByRole('button', { name: 'Back', exact: true }).click();
+
+/** Closes Settings from any page: Back up to the list of piles, where the header offers Close. */
+async function closeSettings(page: Page) {
+  const settings = page.locator('dialog.settings-dialog');
+  while (await settings.getByRole('button', { name: 'Back', exact: true }).isVisible()) await settingsBack(page);
+  await settings.getByRole('button', { name: 'Close' }).click();
+}
+
 /** Adds an action from the open swipe page: Add an action, the action by name, and for Add or Remove label the label. */
 async function addAction(page: Page, action: string, label?: string) {
   const settings = page.locator('dialog.settings-dialog');
@@ -258,6 +269,11 @@ test('swiping up opens the conversation, marks it read, and an action there sort
   await view.getByRole('button', { name: 'Back to the deck' }).click();
   await view.waitFor({ state: 'hidden' });
   assert.equal(await topSubject(page), 'Message number 1', 'back keeps the card on top');
+  await page.keyboard.press('ArrowUp');
+  await view.waitFor();
+  await page.goBack();
+  await view.waitFor({ state: 'hidden' });
+  assert.equal(await topSubject(page), 'Message number 1', "the phone's Back closes the read view, not the app");
   await page.locator('.swipe-card .fact', { hasText: 'Read' }).waitFor();
 
   await page.keyboard.press('ArrowUp');
@@ -536,16 +552,24 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
   await openSwipe(page, 'Left');
   await addAction(page, 'Skip');
   assert.deepEqual(await page.locator('.settings-group .row .row-title').first().textContent(), 'Skip', 'Skip stands alone');
-  await page.getByRole('button', { name: 'Unread', exact: true }).click();
+  await settingsBack(page);
   await page.getByRole('button', { name: 'Left swipe: Skip' }).waitFor();
-  await page.getByRole('button', { name: 'All piles' }).click();
+  await settingsBack(page);
   await page.getByRole('button', { name: /^Edit Read/ }).click();
   await page.getByRole('button', { name: 'Down swipe: Skip' }).waitFor();
   await openSwipe(page, 'Left');
   await page.getByRole('button', { name: 'Remove Delete' }).click();
   await addAction(page, 'Archive');
-  await page.getByRole('button', { name: 'Close' }).click();
+  // The phone's Back steps up: the swipe, the pile, the list of piles, then out of Settings.
+  const title = page.locator('#dialog-title');
+  await page.goBack();
+  await page.waitForFunction(() => document.querySelector('#dialog-title')?.textContent === 'Read');
+  await page.goBack();
+  await page.waitForFunction(() => document.querySelector('#dialog-title')?.textContent === 'Settings');
+  assert.equal(await title.textContent(), 'Settings');
+  await page.goBack();
   await page.locator('dialog').waitFor({ state: 'hidden' });
+  assert.equal(new URL(page.url()).origin, new URL(base).origin, 'Back closed Settings and stayed in the app');
 
   await page.reload();
   await waitForCard(page);
@@ -574,8 +598,10 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await openSwipe(page, 'Down');
   await page.getByRole('button', { name: 'Remove Mark read' }).click();
   await page.getByText('Choose what the down swipe does. Until then, this change is not saved.').waitFor();
-  await page.getByRole('button', { name: 'Unread', exact: true }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+  await settingsBack(page);
+  await settingsBack(page);
+  // The phone's Back from the list of piles would leave Settings: it asks first, as Close does.
+  await page.goBack();
   await page.getByRole('heading', { name: 'Leave without this change?' }).waitFor();
   await page.screenshot({ path: `${screenshots}settings-leave.png`, animations: 'disabled' });
   await page.getByRole('button', { name: 'Fix it' }).click();
@@ -600,7 +626,7 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
     'Archive',
   ]);
   await page.screenshot({ path: `${screenshots}settings-labels.png` });
-  await page.getByRole('button', { name: 'Close' }).click();
+  await closeSettings(page);
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await page.keyboard.press('ArrowDown');
@@ -616,7 +642,7 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.getByRole('combobox', { name: 'Where' }).selectOption('anywhere');
   await page.getByRole('button', { name: /^Has labels/ }).click();
   await page.getByRole('checkbox', { name: 'todo accounting' }).check();
-  await page.getByRole('button', { name: 'Accounting', exact: true }).click();
+  await settingsBack(page);
   await openSwipe(page, 'Right');
   await page.getByRole('button', { name: 'Remove Mark read' }).click();
   await page.getByRole('button', { name: 'Remove Archive' }).click();
@@ -628,12 +654,12 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
     "the pile's own label comes first",
   );
   await page.getByRole('button', { name: 'todo accounting', exact: true }).click();
-  await page.getByRole('button', { name: 'Accounting', exact: true }).click();
+  await settingsBack(page);
   await page.locator('.group-note', { hasText: 'Anywhere · read or unread · has todo accounting' }).waitFor();
   await page.screenshot({ path: `${screenshots}settings-pile.png` });
-  await page.getByRole('button', { name: 'All piles' }).click();
+  await settingsBack(page);
   await page.screenshot({ path: `${screenshots}settings.png` });
-  await page.getByRole('button', { name: 'Close' }).click();
+  await closeSettings(page);
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await waitForCount(page, 'Accounting · 1');
@@ -703,13 +729,13 @@ test('More filters have a page of their own, and a pile built with them loads it
   await page.getByLabel('From', { exact: true }).fill('anna@example.com');
   await page.getByRole('switch', { name: 'Has an attachment' }).check();
   await page.screenshot({ path: `${screenshots}settings-more-filters.png` });
-  await page.getByRole('button', { name: 'Anna', exact: true }).click();
+  await settingsBack(page);
   await page
     .getByRole('button', { name: /^More filters/ })
     .filter({ hasText: 'Updates · older than 6 months · from anna@example.com · with attachment' })
     .waitFor();
-  await page.getByRole('button', { name: 'All piles' }).click();
-  await page.getByRole('button', { name: 'Close' }).click();
+  await settingsBack(page);
+  await closeSettings(page);
   await page.locator('dialog').waitFor({ state: 'hidden' });
 
   await waitForCount(page, 'Anna · ~3');
@@ -741,7 +767,7 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
   await page.screenshot({ path: `${screenshots}dark-settings.png` });
-  await page.getByRole('button', { name: 'All piles' }).click();
+  await settingsBack(page);
   await page.getByRole('button', { name: 'New pile' }).click();
   await page.getByRole('button', { name: 'Delete this pile' }).click();
   await page.getByRole('heading', { name: 'Delete New pile?' }).waitFor();
@@ -791,7 +817,7 @@ test('piles reorder by dragging their handle, or with the arrow keys on it', asy
   await page.getByRole('button', { name: /^Move Unread/ }).press('ArrowDown');
   assert.deepEqual(await names(), ['Read', 'Unread']);
 
-  await page.getByRole('button', { name: 'Close' }).click();
+  await closeSettings(page);
   await page.locator('dialog').waitFor({ state: 'hidden' });
   assert.deepEqual(await tabLabels(page), ['Read · 3', 'Unread · 3']);
   assert.deepEqual(errors, []);

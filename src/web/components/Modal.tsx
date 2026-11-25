@@ -1,9 +1,10 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 
 /**
- * A dialog with a header: close at the start, the title, and an optional action at the end, such as Save. With
- * `fullScreen` it fills a phone's screen and becomes a centered dialog on wider ones, as Material's full-screen dialogs do.
+ * A dialog with a header: close at the start, or back on a page below its first, the title, and an optional action at the
+ * end. With `fullScreen` it fills a phone's screen and becomes a centered dialog on wider ones, as Material's full-screen
+ * dialogs do.
  */
 export function Modal({
   name,
@@ -12,8 +13,14 @@ export function Modal({
   className,
   action,
   fullScreen = false,
+  title,
+  onBack,
 }: {
   name: string;
+  /** The header's title when it differs from the dialog's name, such as a page inside Settings. */
+  title?: string;
+  /** Given on a page below the first: the header's leading button goes back instead of closing. */
+  onBack?(): void;
   /** Escape, the close button and a tap outside all ask to close; the caller decides. */
   onClose(): void;
   children: ReactNode;
@@ -22,12 +29,12 @@ export function Modal({
   fullScreen?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const title = useRef<HTMLHeadingElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
     ref.current?.showModal();
     // The title takes the focus rather than Close, so no focus ring shows on opening.
-    title.current?.focus({ preventScroll: true });
+    heading.current?.focus({ preventScroll: true });
     return () => opener?.focus({ preventScroll: true });
   }, []);
   return (
@@ -44,11 +51,17 @@ export function Modal({
       }}
     >
       <header className="modal-header">
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-          <X size={22} />
-        </button>
-        <h2 id="dialog-title" ref={title} tabIndex={-1}>
-          {name}
+        {onBack ? (
+          <button type="button" className="icon-button" onClick={onBack} aria-label="Back" title="Back">
+            <ArrowLeft size={22} />
+          </button>
+        ) : (
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close" title="Close">
+            <X size={22} />
+          </button>
+        )}
+        <h2 id="dialog-title" ref={heading} tabIndex={-1}>
+          {title ?? name}
         </h2>
         {action}
       </header>

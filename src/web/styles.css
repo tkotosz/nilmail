@@ -1319,20 +1319,6 @@ label.row:has(.row-select:focus-visible)::before {
   border-radius: var(--shape-l);
   box-shadow: var(--elevation-3);
 }
-.back-link {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  margin: 0 0 -8px -4px;
-  padding: 0 12px 0 4px;
-  border: 0;
-  border-radius: var(--shape-full);
-  background: transparent;
-  color: var(--md-primary);
-  font-weight: 500;
-}
 .form-problem {
   margin: 8px 12px 0 !important;
   padding: 12px 16px;

@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { ArrowLeft } from 'lucide-react';
 
 /*
  * The building blocks of Settings, in the style of Android's settings: rows in rounded groups. A row shows a title and,
@@ -132,15 +131,6 @@ export function FieldRow({ label, children }: { label: string; children: ReactNo
       <span className="row-label">{label}</span>
       {children}
     </label>
-  );
-}
-
-/** Back to the page above, at the top of a page inside Settings. */
-export function BackLink({ title, onClick }: { title: string; onClick(): void }) {
-  return (
-    <button type="button" className="back-link" onClick={onClick}>
-      <ArrowLeft size={20} aria-hidden="true" /> {title}
-    </button>
   );
 }
 

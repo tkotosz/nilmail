@@ -13,7 +13,7 @@ import {
   type Swipe,
 } from '../../core/types.ts';
 import { actionUi, directionArrows, directionNames } from '../action-ui.ts';
-import { BackLink, CheckRow, FieldRow, Group, NavRow, RowIcon, SelectRow, SwitchRow } from './SettingsRows.tsx';
+import { CheckRow, FieldRow, Group, NavRow, RowIcon, SelectRow, SwitchRow } from './SettingsRows.tsx';
 
 /** Finds the label of that name (ignoring case, as Gmail does), creating it in Gmail when there is none. */
 export type LabelMaker = (name: string) => Promise<GmailLabel>;
@@ -28,6 +28,24 @@ export type PilePage =
   | { name: 'pickLabel'; direction: Direction; action: 'addLabel' | 'removeLabel' };
 
 export const gestureOrder: Direction[] = ['left', 'right', 'up', 'down'];
+
+/** The header's title on a page of a pile, such as "→ Right swipe" or "Add label". */
+export function pageTitle(pile: Pile, page: PilePage): string {
+  switch (page.name) {
+    case 'pile':
+      return pile.name || 'Pile';
+    case 'labels':
+      return page.which === 'hasLabels' ? 'Has labels' : "Doesn't have labels";
+    case 'more':
+      return 'More filters';
+    case 'swipe':
+      return `${directionArrows[page.direction]} ${directionNames[page.direction]} swipe`;
+    case 'addAction':
+      return 'Add an action';
+    case 'pickLabel':
+      return actionLabels[page.action].verb;
+  }
+}
 
 const names = (labels: GmailLabel[]) => labels.map(label => label.name).join(', ') || 'None';
 
@@ -146,21 +164,18 @@ function PileMain({
   setFilters,
   onChange,
   onOpen,
-  onBack,
   onDelete,
 }: {
   pile: Pile;
   setFilters(filters: Partial<PileFilters>): void;
   onChange(pile: Pile): void;
   onOpen(page: PilePage): void;
-  onBack(): void;
   onDelete?(): void;
 }) {
   const { filters } = pile;
   const more = moreFiltersSummary(filters) || 'Category, age, sender, attachment';
   return (
     <>
-      <BackLink title="All piles" onClick={onBack} />
       <Group>
         <FieldRow label="Name">
           <input type="text" value={pile.name} onChange={event => onChange({ ...pile, name: event.target.value })} />
@@ -252,13 +267,11 @@ function SwipePage({
   direction,
   onChange,
   onOpen,
-  onBack,
 }: {
   pile: Pile;
   direction: Direction;
   onChange(swipe: Swipe): void;
   onOpen(page: PilePage): void;
-  onBack(): void;
 }) {
   const current = pile.swipes[direction];
   const remove = (index: number) => {
@@ -267,8 +280,7 @@ function SwipePage({
   };
   return (
     <>
-      <BackLink title={pile.name || 'Pile'} onClick={onBack} />
-      <Group title={`${directionArrows[direction]} ${directionNames[direction]} swipe does`}>
+      <Group title="Does">
         {current.actions.map((action, index) => (
           <div key={`${action.id}:${action.label?.id ?? ''}`} className="row">
             <ActionIcon action={action.id} />
@@ -342,14 +354,17 @@ function AddActionPage({
   direction,
   onChange,
   onOpen,
+  onBack,
 }: {
   pile: Pile;
   direction: Direction;
   onChange(swipe: Swipe): void;
   onOpen(page: PilePage): void;
+  /** Back to the swipe's page. */
+  onBack(): void;
 }) {
   const current = pile.swipes[direction];
-  const back = () => onOpen({ name: 'swipe', direction });
+  const back = onBack;
   const add = (id: ActionId) => {
     onChange(withAction(current, { id }));
     back();
@@ -357,8 +372,7 @@ function AddActionPage({
   const has = (id: ActionId) => current.actions.some(action => action.id === id);
   return (
     <>
-      <BackLink title={`${directionArrows[direction]} ${directionNames[direction]} swipe`} onClick={back} />
-      <Group title="Add an action">
+      <Group>
         {(['markRead', 'archive', 'delete'] as const).map(id => (
           <ActionChoice key={id} action={id} done={has(id)} onClick={() => add(id)} />
         ))}
@@ -383,7 +397,7 @@ function LabelPickPage({
   known,
   makeLabel,
   onChange,
-  onOpen,
+  onBack,
 }: {
   pile: Pile;
   direction: Direction;
@@ -391,12 +405,13 @@ function LabelPickPage({
   known: GmailLabel[];
   makeLabel: LabelMaker;
   onChange(swipe: Swipe): void;
-  onOpen(page: PilePage): void;
+  /** Back `levels` pages: one to Add an action, two to the swipe's page. */
+  onBack(levels: number): void;
 }) {
   const current = pile.swipes[direction];
   const pick = (label: GmailLabel) => {
     onChange(withAction(current, { id: action, label }));
-    onOpen({ name: 'swipe', direction });
+    onBack(2);
   };
   // A pile's own labels come first in Remove label, as removing one is how mail leaves the pile.
   const labels =
@@ -405,8 +420,7 @@ function LabelPickPage({
       : known;
   return (
     <>
-      <BackLink title="Add an action" onClick={() => onOpen({ name: 'addAction', direction })} />
-      <Group title={actionLabels[action].verb}>
+      <Group>
         {labels.map(label => {
           const done = current.actions.some(item => sameAction(item, { id: action, label }));
           return (
@@ -433,21 +447,12 @@ function LabelPickPage({
   );
 }
 
-function MoreFiltersPage({
-  pile,
-  setFilters,
-  onBack,
-}: {
-  pile: Pile;
-  setFilters(filters: Partial<PileFilters>): void;
-  onBack(): void;
-}) {
+function MoreFiltersPage({ pile, setFilters }: { pile: Pile; setFilters(filters: Partial<PileFilters>): void }) {
   const { filters } = pile;
   const age = filters.olderThan;
   return (
     <>
-      <BackLink title={pile.name || 'Pile'} onClick={onBack} />
-      <Group title="More filters">
+      <Group>
         <SelectRow
           title="Category"
           value={filters.category}
@@ -523,27 +528,24 @@ export function PileEditor({
   known: GmailLabel[];
   makeLabel: LabelMaker;
   onChange(pile: Pile): void;
-  /** Opens a page of this pile; `pile` is the pile's own page. */
+  /** Opens a page of this pile, one level deeper; `pile` is the pile's own page. */
   onOpen(page: PilePage): void;
-  /** Back to the list of piles. */
-  onBack(): void;
+  /** Back `levels` pages, as the phone's Back does: from the pile's own page, one level is the list of piles. */
+  onBack(levels?: number): void;
   /** Absent for the last pile: there is always at least one. */
   onDelete?(): void;
 }) {
   const setFilters = (filters: Partial<PileFilters>) => onChange({ ...pile, filters: { ...pile.filters, ...filters } });
-  const toPile = () => onOpen({ name: 'pile' });
+  const backOne = () => onBack(1);
   const setSwipe = (direction: Direction) => (changed: Swipe) =>
     onChange({ ...pile, swipes: { ...pile.swipes, [direction]: changed } });
   switch (page.name) {
     case 'pile':
-      return (
-        <PileMain pile={pile} setFilters={setFilters} onChange={onChange} onOpen={onOpen} onBack={onBack} onDelete={onDelete} />
-      );
+      return <PileMain pile={pile} setFilters={setFilters} onChange={onChange} onOpen={onOpen} onDelete={onDelete} />;
     case 'labels':
       return (
         <>
-          <BackLink title={pile.name || 'Pile'} onClick={toPile} />
-          <Group title={page.which === 'hasLabels' ? 'Has labels' : "Doesn't have labels"}>
+          <Group>
             <LabelChecklist
               known={known}
               chosen={pile.filters[page.which]}
@@ -559,13 +561,19 @@ export function PileEditor({
         </>
       );
     case 'more':
-      return <MoreFiltersPage pile={pile} setFilters={setFilters} onBack={toPile} />;
+      return <MoreFiltersPage pile={pile} setFilters={setFilters} />;
     case 'swipe':
-      return (
-        <SwipePage pile={pile} direction={page.direction} onChange={setSwipe(page.direction)} onOpen={onOpen} onBack={toPile} />
-      );
+      return <SwipePage pile={pile} direction={page.direction} onChange={setSwipe(page.direction)} onOpen={onOpen} />;
     case 'addAction':
-      return <AddActionPage pile={pile} direction={page.direction} onChange={setSwipe(page.direction)} onOpen={onOpen} />;
+      return (
+        <AddActionPage
+          pile={pile}
+          direction={page.direction}
+          onChange={setSwipe(page.direction)}
+          onOpen={onOpen}
+          onBack={backOne}
+        />
+      );
     case 'pickLabel':
       return (
         <LabelPickPage
@@ -575,7 +583,7 @@ export function PileEditor({
           known={known}
           makeLabel={makeLabel}
           onChange={setSwipe(page.direction)}
-          onOpen={onOpen}
+          onBack={onBack}
         />
       );
   }

@@ -6,7 +6,7 @@ import { directions, type GmailLabel, type Pile, type Settings } from '../../cor
 import { directionNames } from '../action-ui.ts';
 import { problemText, type WebGmail } from '../gmail-http.ts';
 import { ConfirmDialog, Modal } from './Modal.tsx';
-import { PileEditor, type LabelMaker, type PilePage } from './PilePages.tsx';
+import { PileEditor, pageTitle, type LabelMaker, type PilePage } from './PilePages.tsx';
 import { PileList } from './PileList.tsx';
 import { Group, SwitchRow } from './SettingsRows.tsx';
 
@@ -28,6 +28,22 @@ function problemWith(piles: Pile[]): { place: NonNullable<Place>; text: string }
   }
   return null;
 }
+
+/**
+ * A history entry of Settings: the page it shows and how many entries Settings has pushed, the first when it opened. The
+ * phone's Back then steps up through the pages and, from the list of piles, closes Settings.
+ */
+export interface SettingsEntry {
+  nilmail: 'settings';
+  place: Place;
+  depth: number;
+}
+
+export const isSettingsEntry = (state: unknown): state is SettingsEntry =>
+  (state as SettingsEntry | null)?.nilmail === 'settings';
+
+/** The entry Settings opens with: the list of piles. */
+export const settingsOpened: SettingsEntry = { nilmail: 'settings', place: null, depth: 1 };
 
 /** How long typing pauses before a change is saved, so a pile's search does not reload the deck on every key. */
 const saveDelay = 600;
@@ -61,6 +77,8 @@ export function SettingsForm({
   const [confirming, setConfirming] = useState<{ kind: 'delete'; pile: Pile } | { kind: 'leave' } | null>(null);
   /** The settings as last handed on, to save only real changes. */
   const saved = useRef(JSON.stringify(settings));
+  /** Set when the user chose to leave without a change that cannot be saved, so Back closes without asking again. */
+  const leaving = useRef(false);
   const invalid = problemWith(draft.piles);
 
   useEffect(() => {
@@ -92,17 +110,45 @@ export function SettingsForm({
     return () => clearTimeout(timer);
   }, [draft]);
 
-  function close() {
-    if (invalid) return setConfirming({ kind: 'leave' });
-    save(draft);
-    onClose();
-  }
-
   /** Every page starts at its top. */
-  const go = (next: Place) => {
+  const show = (next: Place) => {
     setPlace(next);
     document.querySelector('dialog[open] .modal-content')?.scrollTo(0, 0);
   };
+  /** Opens a page one level deeper, with a history entry, so the phone's Back returns from it. */
+  const open = (next: Place) => {
+    const depth = (isSettingsEntry(history.state) ? history.state.depth : 0) + 1;
+    history.pushState({ nilmail: 'settings', place: next, depth } satisfies SettingsEntry, '');
+    show(next);
+  };
+  /** Back `levels` pages, the way the phone's Back does; the history decides what shows (see onHistory). */
+  const back = (levels = 1) => history.go(-levels);
+  /** Closes Settings by going back past all of its entries. */
+  const closeAll = () => history.go(-(isSettingsEntry(history.state) ? history.state.depth : 1));
+
+  function close() {
+    if (invalid) return setConfirming({ kind: 'leave' });
+    closeAll();
+  }
+
+  // The phone's Back, the in-app back links and closing all move through the history; this shows where it lands.
+  const onHistory = useEffectEvent((state: unknown) => {
+    if (isSettingsEntry(state)) return show(state.place);
+    if (leaving.current) return onClose();
+    if (invalid) {
+      // Back left Settings with a change that cannot be saved yet: stay, and ask first.
+      history.pushState(settingsOpened, '');
+      show(null);
+      return setConfirming({ kind: 'leave' });
+    }
+    save(draft);
+    onClose();
+  });
+  useEffect(() => {
+    const listener = (event: PopStateEvent) => onHistory(event.state);
+    window.addEventListener('popstate', listener);
+    return () => window.removeEventListener('popstate', listener);
+  }, []);
   const change = <Key extends keyof Settings>(key: Key, value: Settings[Key]) =>
     setDraft(current => ({ ...current, [key]: value }));
   const setPiles = (update: (piles: Pile[]) => Pile[]) => setDraft(current => ({ ...current, piles: update(current.piles) }));
@@ -135,7 +181,7 @@ export function SettingsForm({
   function addPile() {
     const added = newPile(crypto.randomUUID(), 'New pile');
     setPiles(piles => [...piles, added]);
-    go({ pileId: added.id, page: { name: 'pile' } });
+    open({ pileId: added.id, page: { name: 'pile' } });
   }
 
   function deletePile(id: string) {
@@ -143,11 +189,18 @@ export function SettingsForm({
     setDraft(next);
     save(next);
     setConfirming(null);
-    go(null);
+    back();
   }
 
   return (
-    <Modal name="Settings" fullScreen className="settings-dialog" onClose={close}>
+    <Modal
+      name="Settings"
+      fullScreen
+      className="settings-dialog"
+      onClose={close}
+      title={pile && place ? pageTitle(pile, place.page) : undefined}
+      onBack={place ? () => back() : undefined}
+    >
       <div className="settings-form">
         {(invalid || problem) && (
           <p className="form-problem" role="alert">
@@ -161,15 +214,15 @@ export function SettingsForm({
             known={labels ?? []}
             makeLabel={makeLabel}
             onChange={edited => setPiles(piles => piles.map(item => (item.id === edited.id ? edited : item)))}
-            onOpen={page => go({ pileId: pile.id, page })}
-            onBack={() => go(null)}
+            onOpen={page => open({ pileId: pile.id, page })}
+            onBack={back}
             onDelete={draft.piles.length > 1 ? () => setConfirming({ kind: 'delete', pile }) : undefined}
           />
         ) : (
           <>
             <PileList
               piles={draft.piles}
-              onEdit={id => go({ pileId: id, page: { name: 'pile' } })}
+              onEdit={id => open({ pileId: id, page: { name: 'pile' } })}
               onMove={movePile}
               onAdd={addPile}
             />
@@ -217,9 +270,15 @@ export function SettingsForm({
           cancel="Fix it"
           onCancel={() => {
             setConfirming(null);
-            go(invalid.place);
+            // Through the pile's page, so Back from the swipe leads there.
+            open({ pileId: invalid.place.pileId, page: { name: 'pile' } });
+            if (invalid.place.page.name !== 'pile') open(invalid.place);
           }}
-          onConfirm={onClose}
+          onConfirm={() => {
+            setConfirming(null);
+            leaving.current = true;
+            closeAll();
+          }}
         />
       )}
     </Modal>
