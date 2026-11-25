@@ -313,7 +313,12 @@ export function Sorter({
         <label className="deck-picker">
           <select
             value={pile.id}
-            onChange={event => (event.target.value === editPiles ? setDialog('settings') : showPile(event.target.value))}
+            onChange={event => {
+              // The arrow keys swipe cards again, instead of changing the pile.
+              event.target.blur();
+              if (event.target.value === editPiles) setDialog('settings');
+              else showPile(event.target.value);
+            }}
             aria-label="Pile to sort"
             title={count?.estimate ? `About ${numbers.format(count.value)} (Gmail's estimate)` : undefined}
           >
@@ -322,7 +327,9 @@ export function Sorter({
                 {pileLabel(item, counts[item.id])}
               </option>
             ))}
-            <option value={editPiles}>Edit piles…</option>
+            <option value={editPiles} className="picker-edit">
+              Edit piles…
+            </option>
           </select>
           <ChevronDown size={15} aria-hidden="true" />
         </label>

@@ -544,6 +544,108 @@ svg {
   right: 12px;
   pointer-events: none;
 }
+/*
+ * Chrome 135+ (Android included) can draw the picker's menu in the page instead of the phone's own dialog, so it can be
+ * an M3 menu: surface-container, large corners, 48px rows, the chosen pile in secondary-container. Other browsers keep
+ * their own picker. https://developer.chrome.com/docs/modern-web-guidance/guides/forms/branded-select-styling
+ */
+@supports (appearance: base-select) {
+  .deck-picker select,
+  .deck-picker select::picker(select) {
+    appearance: base-select;
+  }
+  .deck-picker select {
+    display: flex;
+    align-items: center;
+  }
+  .deck-picker select::picker-icon {
+    display: none;
+  }
+  .deck-picker select::picker(select) {
+    min-width: max(220px, anchor-size(width));
+    max-width: calc(100vw - 32px);
+    margin-top: 8px;
+    padding: 8px;
+    border: 0;
+    border-radius: var(--shape-l);
+    background: var(--md-surface-container-high);
+    color: var(--md-on-surface);
+    box-shadow: var(--elevation-3);
+    position-area: bottom span-all;
+    position-try-fallbacks: flip-block;
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 150ms var(--ease-standard),
+      transform 200ms var(--ease-decelerate),
+      display 200ms allow-discrete,
+      overlay 200ms allow-discrete;
+  }
+  @starting-style {
+    .deck-picker select:open::picker(select) {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+    }
+  }
+  .deck-picker option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: var(--shape-m);
+    font-size: 1rem;
+    line-height: 1.5rem;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .deck-picker option::checkmark {
+    order: 1;
+    margin-left: auto;
+    content: '✓';
+    font-weight: 600;
+  }
+  .deck-picker option:hover,
+  .deck-picker option:focus-visible {
+    background: color-mix(in srgb, var(--md-on-surface) 8%, transparent);
+    outline: none;
+  }
+  .deck-picker option:checked {
+    background: var(--md-secondary-container);
+    color: var(--md-on-secondary-container);
+    font-weight: 500;
+  }
+  /* The dark secondary container is a heavy brick red; a neutral highlight with a primary check reads calmer. */
+  @media (prefers-color-scheme: dark) {
+    .deck-picker option:checked {
+      background: var(--md-surface-container-highest);
+      color: var(--md-on-surface);
+    }
+    .deck-picker option:checked::checkmark {
+      color: var(--md-primary);
+    }
+  }
+  /* "Edit piles…" is a command, not a pile: set apart, in the primary color. */
+  .deck-picker option.picker-edit {
+    margin-top: 8px;
+    color: var(--md-primary);
+    font-weight: 500;
+  }
+  .deck-picker option.picker-edit::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 8px;
+    right: 8px;
+    border-top: 1px solid var(--md-outline-variant);
+  }
+  .deck-picker option.picker-edit::checkmark {
+    content: none;
+  }
+}
 .top-actions {
   margin-left: auto;
   display: flex;

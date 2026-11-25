@@ -555,6 +555,11 @@ test('the dark theme covers the deck, the read view, settings and sign-in', asyn
   const surface = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
   assert.equal(surface, 'rgb(22, 19, 16)', 'the dark surface');
   await page.screenshot({ path: `${screenshots}dark-deck.png` });
+  await page.getByLabel('Pile to sort').click();
+  await page.getByRole('option', { name: 'Edit piles…' }).waitFor();
+  await page.waitForTimeout(400); // the menu fades in
+  await page.screenshot({ path: `${screenshots}dark-picker.png` });
+  await page.keyboard.press('Escape');
   await drag(page, -150, 10, async page => {
     await page.locator('.swipe-intent').waitFor();
     await page.screenshot({ path: `${screenshots}dark-dragging.png` });
@@ -632,6 +637,12 @@ test('the picker switches to read conversations, with their own swipes, and back
   assert.equal(await topSubject(page), 'Message number 1', 'the app starts on unread');
   await waitForCount(page, 'Unread · 3');
   await waitForCount(page, 'Read · 3');
+  await page.getByLabel('Pile to sort').click();
+  await page.getByRole('option', { name: 'Edit piles…' }).waitFor();
+  await page.waitForTimeout(400); // the menu fades in
+  await page.screenshot({ path: `${screenshots}picker.png` });
+  await page.keyboard.press('Escape');
+  await page.getByLabel('Pile to sort').blur();
   const markRead = page.locator('.action-bar').getByRole('button', { name: /Mark read/ });
   assert.equal(await markRead.count(), 1, 'down marks unread mail read');
 
