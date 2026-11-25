@@ -102,7 +102,7 @@ export function pileSummary(filters: PileFilters): string {
 /** A swipe of the given actions, none with a label, not covering the sender's other conversations. */
 export const swipeOf = (...ids: ActionId[]): Swipe => ({ actions: ids.map(id => ({ id })), allFromSender: false, name: '' });
 
-/** The default swipes: right marks read and archives, left deletes, up reads, and down as given. */
+/** The Unread pile's swipes: right marks read and archives, left deletes, up reads, and down as given. */
 const swipes = (down: ActionId): Record<Direction, Swipe> => ({
   right: swipeOf('markRead', 'archive'),
   left: swipeOf('delete'),
@@ -131,10 +131,18 @@ export const unreadPile: Pile = {
   swipes: swipes('markRead'),
 };
 
-/** The swipes of a new pile, where down skips. */
-export const defaultSwipes = swipes('skip');
+/**
+ * The swipes of a new pile: all of them skip, changing nothing in Gmail until the user sets them up. A saved swipe that
+ * cannot be restored falls back to these too.
+ */
+export const defaultSwipes: Record<Direction, Swipe> = {
+  right: swipeOf('skip'),
+  left: swipeOf('skip'),
+  up: swipeOf('skip'),
+  down: swipeOf('skip'),
+};
 
-/** A pile the user adds: unread inbox mail and the default swipes, until they change it. */
+/** A pile the user adds: unread inbox mail, and swipes that skip, until they change it. */
 export const newPile = (id: string, name: string): Pile => ({
   id,
   name,

@@ -18,8 +18,9 @@ test('missing or broken settings fall back to the Unread pile, the only default'
   );
   assert.deepEqual(unreadPile.swipes.right, swipeOf('markRead', 'archive'), 'right marks read and archives');
   assert.deepEqual(unreadPile.swipes.down, swipeOf('markRead'));
-  assert.deepEqual(newPile('p1', 'Later').swipes.right, swipeOf('markRead', 'archive'));
-  assert.deepEqual(newPile('p1', 'Later').swipes.down, swipeOf('skip'), 'piles the user adds skip on down');
+  for (const direction of ['right', 'left', 'up', 'down'] as const) {
+    assert.deepEqual(newPile('p1', 'Later').swipes[direction], swipeOf('skip'), 'a new pile changes nothing until set up');
+  }
 });
 
 test('a saved pile keeps its filters and swipes; anything invalid falls back', () => {

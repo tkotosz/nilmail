@@ -55,9 +55,24 @@ const unreadAndRead = {
       id: 'unread',
       name: 'Unread',
       filters: inbox('unread'),
-      swipes: { down: { action: 'markRead', labels: [], archive: true } },
+      swipes: {
+        right: { actions: [{ id: 'markRead' }, { id: 'archive' }] },
+        left: { actions: [{ id: 'delete' }] },
+        up: { actions: [{ id: 'read' }] },
+        down: { actions: [{ id: 'markRead' }] },
+      },
     },
-    { id: 'read', name: 'Read', filters: inbox('read'), swipes: {} },
+    {
+      id: 'read',
+      name: 'Read',
+      filters: inbox('read'),
+      swipes: {
+        right: { actions: [{ id: 'archive' }] },
+        left: { actions: [{ id: 'delete' }] },
+        up: { actions: [{ id: 'read' }] },
+        down: { actions: [{ id: 'skip' }] },
+      },
+    },
   ],
 };
 
@@ -646,8 +661,7 @@ test('a swipe adds several labels, new and existing; a pile built on a label rem
   await page.getByRole('checkbox', { name: 'todo accounting' }).check();
   await settingsBack(page);
   await openSwipe(page, 'Right');
-  await page.getByRole('button', { name: 'Remove Mark read' }).click();
-  await page.getByRole('button', { name: 'Remove Archive' }).click();
+  assert.equal(await page.locator('.settings-group .row-title').first().textContent(), 'Skip', 'a new pile only skips');
   await page.getByRole('button', { name: 'Add an action' }).click();
   await page.getByRole('button', { name: /^Remove label/ }).click();
   assert.equal(

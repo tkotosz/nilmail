@@ -17,7 +17,9 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
   - right: Mark read + Archive
   - left: Delete (moves it to the Bin)
   - up: Read (opens the whole conversation)
-  - down: Mark read in Unread, Skip in piles you add
+  - down: Mark read
+
+  Piles you add start with every swipe set to Skip, so they change nothing until you set them up.
 
   The same actions are on the buttons under the card and on the arrow keys.
 - **Label actions** move mail between piles: Add label and Remove label, each with one label and as many as you like, and Remove all labels (only labels you made; Inbox, Starred and the like stay). For example: Remove label *todo* + Add label *done* + Archive.
