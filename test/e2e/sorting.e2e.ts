@@ -115,6 +115,12 @@ test('swiping right archives the newest unread thread, and undo puts it back', a
   await drag(page, 320, 10, async page => {
     await page.locator('.swipe-intent', { hasText: 'Archive' }).waitFor();
     await page.screenshot({ path: `${screenshots}deck-dragging.png` });
+    // The page itself must not scroll, yet keeps the browser's pull-to-refresh (no overflow or overscroll rules on body).
+    const scroll = await page.evaluate(() => {
+      const root = document.scrollingElement!;
+      return { wide: root.scrollWidth > root.clientWidth, tall: root.scrollHeight > root.clientHeight };
+    });
+    assert.deepEqual(scroll, { wide: false, tall: false }, 'a card dragged off screen does not make the page scroll');
   });
   await page.getByRole('status').filter({ hasText: 'Archived' }).waitFor();
   await settle(gmail, 1);

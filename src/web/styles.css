@@ -37,11 +37,12 @@
 body {
   margin: 0;
   min-width: 280px;
-  overflow: hidden;
-  overscroll-behavior: none;
 }
+/* Clip rather than hide overflow on the page, so a card thrown off screen
+   cannot scroll it, while the browser keeps pull-to-refresh. */
 #root {
   height: 100dvh;
+  overflow: clip;
   display: flex;
   flex-direction: column;
 }
