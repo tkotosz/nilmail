@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ArrowLeft, ChevronRight, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 /*
  * The building blocks of Settings, in the style of Android's settings: rows in rounded groups. A row shows a title and,
@@ -45,7 +45,6 @@ export function NavRow({
     <button type="button" className="row" onClick={onClick} aria-label={label}>
       {icon}
       <RowText title={title} value={value} />
-      <ChevronRight size={20} aria-hidden="true" className="row-trailing" />
     </button>
   );
 }
@@ -66,7 +65,6 @@ export function SelectRow<Value extends string>({
   return (
     <label className="row">
       <RowText title={title} value={shown} />
-      <ChevronsUpDown size={18} aria-hidden="true" className="row-trailing" />
       <select className="row-select" aria-label={title} value={value} onChange={event => onChange(event.target.value as Value)}>
         {options.map(([option, text]) => (
           <option key={option} value={option}>
