@@ -9,6 +9,7 @@ import type { WebGmail } from '../gmail-http.ts';
 import { problemText } from '../gmail-http.ts';
 import { Avatar } from './MailCardView.tsx';
 import { MessageBody } from './MessageBody.tsx';
+import { appVersion } from '../version.ts';
 import { closeRequestHandlers } from './Modal.tsx';
 
 /** The actions in the read view's top bar, as icons, the way Gmail shows them; Reply has its own button at the bottom. */
@@ -106,6 +107,30 @@ function Message({
   );
 }
 
+/** TEMPORARY: link shapes to try on Android; the one that opens the conversation in the Gmail app replaces Reply's. */
+function GmailLinkTest({ email, threadId }: { email: string; threadId: string }) {
+  const id = encodeURIComponent(threadId);
+  const account = encodeURIComponent(email);
+  const app = (path: string) => `intent://mail.google.com${path}#Intent;scheme=https;package=com.google.android.gm;end`;
+  const links: [string, string][] = [
+    ['1 · link, /mail/u/account', `https://mail.google.com/mail/u/${account}/#all/${id}`],
+    ['2 · link, /mail/u/0', `https://mail.google.com/mail/u/0/#all/${id}`],
+    ['3 · intent, /mail/u/account', app(`/mail/u/${account}/#all/${id}`)],
+    ['4 · intent, /mail/u/0', app(`/mail/u/0/#all/${id}`)],
+    ['5 · intent, any app, /mail/u/account', `intent://mail.google.com/mail/u/${account}/#all/${id}#Intent;scheme=https;end`],
+  ];
+  return (
+    <details className="link-test">
+      <summary>Gmail link test (preview only)</summary>
+      {links.map(([label, href]) => (
+        <a key={label} href={href} target={href.startsWith('intent:') ? undefined : '_blank'} rel="noopener">
+          {label}
+        </a>
+      ))}
+    </details>
+  );
+}
+
 /**
  * The whole conversation, full screen, laid out as Gmail does: the actions as icons in the top bar, the subject as the
  * page's title, each message with its sender in brief, and Reply at the bottom.
@@ -195,6 +220,8 @@ export function ReadView({
           </div>
         )}
       </div>
+      {/* TEMPORARY: preview builds only, to find which link shape opens a conversation in the Gmail app. */}
+      {!appVersion.startsWith('v') && <GmailLinkTest email={email} threadId={card.threadId} />}
       <footer className="read-footer">
         <button type="button" className="reply-button" onClick={() => onAction('reply')}>
           <Reply size={20} aria-hidden="true" /> Reply in Gmail
