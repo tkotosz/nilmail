@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GmailThread } from '../src/core/gmail.ts';
-import { cardFromThread, decodeBody, decodeEntities, parsePerson, parseUnsubscribe, threadView } from '../src/core/message.ts';
+import {
+  cardFromThread,
+  decodeBody,
+  decodeEntities,
+  parseAddressList,
+  parsePerson,
+  parseUnsubscribe,
+  recipientsText,
+  threadView,
+} from '../src/core/message.ts';
 
 const base64Url = (bytes: Uint8Array | string) =>
   Buffer.from(typeof bytes === 'string' ? Buffer.from(bytes, 'utf8') : bytes).toString('base64url');
@@ -151,4 +160,20 @@ test('the read view prefers the HTML body, lists attachments and puts the newest
   assert.deepEqual(view.messages[0].attachments, [{ filename: 'bill.pdf', size: 2048 }]);
   assert.equal(view.messages[0].to, 'me@example.com');
   assert.equal(view.messages[1].text, 'Plain only');
+});
+
+test('an address list splits on commas outside quotes and angle brackets', () => {
+  assert.deepEqual(parseAddressList('"Doe, Jane" <jane@example.com>, bob@example.com'), [
+    { name: 'Doe, Jane', address: 'jane@example.com' },
+    { name: 'bob@example.com', address: 'bob@example.com' },
+  ]);
+  assert.deepEqual(parseAddressList(''), []);
+});
+
+test('the recipients read as Gmail writes them, with the signed-in address as "me"', () => {
+  assert.equal(
+    recipientsText('"me@example.com" <Me@example.com>', 'Ann Smith <ann@example.org>', 'me@example.com'),
+    'me, Ann Smith',
+  );
+  assert.equal(recipientsText('team@example.com', '', 'me@example.com'), 'team@example.com');
 });

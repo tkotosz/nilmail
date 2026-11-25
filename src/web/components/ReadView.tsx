@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Paperclip } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FileText, Reply } from 'lucide-react';
 import { actionLabels } from '../../core/actions.ts';
-import { threadView } from '../../core/message.ts';
+import { recipientsText, threadView } from '../../core/message.ts';
 import type { ActionId, MailCard, MessageView, ThreadView } from '../../core/types.ts';
 import { actionUi } from '../action-ui.ts';
 import { fileSize, fullDateTime, shortDate } from '../format.ts';
@@ -10,20 +10,33 @@ import { problemText } from '../gmail-http.ts';
 import { Avatar } from './MailCardView.tsx';
 import { MessageBody } from './MessageBody.tsx';
 
-/** The actions the read view offers: reading again or marking read makes no sense here. */
-const readViewActions: ActionId[] = ['archive', 'delete', 'reply', 'skip'];
+/** The actions in the read view's top bar, as icons, the way Gmail shows them; Reply has its own button at the bottom. */
+const topActions: ActionId[] = ['archive', 'delete', 'skip'];
+
+function IconAction({ action, label, onClick }: { action: ActionId; label: string; onClick(): void }) {
+  const { Icon } = actionUi[action];
+  return (
+    <button type="button" className="icon-button" aria-label={label} title={label} onClick={onClick}>
+      <Icon size={22} />
+    </button>
+  );
+}
 
 function Message({
   message,
+  me,
   open,
   onOpen,
   loadImages,
 }: {
   message: MessageView;
+  /** The signed-in address, which the recipients show as "me". */
+  me: string;
   open: boolean;
   onOpen(): void;
   loadImages: boolean;
 }) {
+  const [details, setDetails] = useState(false);
   if (!open) {
     return (
       <button type="button" className="message collapsed" onClick={onOpen}>
@@ -36,24 +49,54 @@ function Message({
       </button>
     );
   }
+  const recipients = recipientsText(message.to, message.cc, me);
   return (
     <section className="message">
       <header className="message-header">
         <Avatar name={message.from.name} address={message.from.address} />
-        <div className="message-people">
-          <strong>{message.from.name}</strong>
-          <span>{message.from.address}</span>
-          {message.to && <span>To: {message.to}</span>}
-          {message.cc && <span>Cc: {message.cc}</span>}
+        <div className="message-who">
+          <div className="message-from">
+            <strong>{message.from.name}</strong>{' '}
+            <time dateTime={new Date(message.date).toISOString()}>{shortDate(message.date)}</time>
+          </div>
+          <button type="button" className="message-to" aria-expanded={details} onClick={() => setDetails(shown => !shown)}>
+            {recipients ? `to ${recipients}` : 'Details'}
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
         </div>
-        <time>{fullDateTime(message.date)}</time>
       </header>
+      {details && (
+        <dl className="message-details">
+          <dt>From</dt>
+          <dd>
+            {message.from.name === message.from.address ? message.from.address : `${message.from.name} <${message.from.address}>`}
+          </dd>
+          {message.to && (
+            <>
+              <dt>To</dt>
+              <dd>{message.to}</dd>
+            </>
+          )}
+          {message.cc && (
+            <>
+              <dt>Cc</dt>
+              <dd>{message.cc}</dd>
+            </>
+          )}
+          <dt>Date</dt>
+          <dd>{fullDateTime(message.date)}</dd>
+        </dl>
+      )}
       <MessageBody html={message.html} text={message.text} loadImages={loadImages} />
       {message.attachments.length > 0 && (
         <ul className="attachments" aria-label="Attachments">
           {message.attachments.map((attachment, index) => (
             <li key={index}>
-              <Paperclip size={14} aria-hidden="true" /> {attachment.filename} <span>{fileSize(attachment.size)}</span>
+              <FileText size={20} aria-hidden="true" />
+              <span className="attachment-text">
+                <span className="attachment-name">{attachment.filename}</span>
+                <span className="attachment-size">{fileSize(attachment.size)}</span>
+              </span>
             </li>
           ))}
         </ul>
@@ -62,25 +105,22 @@ function Message({
   );
 }
 
-function UnsubscribeChip({ onClick }: { onClick(): void }) {
-  const { Icon, tone } = actionUi.unsubscribe;
-  return (
-    <button type="button" className={`chip-button tone-${tone} read-unsubscribe`} onClick={onClick}>
-      <Icon size={15} aria-hidden="true" /> Unsubscribe and archive
-    </button>
-  );
-}
-
-/** The whole conversation, full screen, with the actions along the bottom. */
+/**
+ * The whole conversation, full screen, laid out as Gmail does: the actions as icons in the top bar, the subject as the
+ * page's title, each message with its sender in brief, and Reply at the bottom.
+ */
 export function ReadView({
   card,
   gmail,
+  email,
   loadImages,
   onAction,
   onClose,
 }: {
   card: MailCard;
   gmail: WebGmail;
+  /** The signed-in address. */
+  email: string;
   loadImages: boolean;
   onAction(action: ActionId): void;
   onClose(): void;
@@ -108,45 +148,52 @@ export function ReadView({
   const newest = thread?.messages[0]?.id;
   return (
     <dialog ref={dialog} className="read-view" aria-labelledby="read-subject" onCancel={onClose}>
-      <header className="read-header">
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Back to the deck">
+      <header className="read-top">
+        <button type="button" className="icon-button" onClick={onClose} aria-label="Back to the deck" title="Back">
           <ArrowLeft size={22} />
         </button>
-        <h2 id="read-subject">{thread?.subject ?? card.subject}</h2>
+        <span className="read-top-space" />
+        {card.unsubscribe && (
+          <IconAction action="unsubscribe" label="Unsubscribe and archive" onClick={() => onAction('unsubscribe')} />
+        )}
+        {topActions.map(action => (
+          <IconAction key={action} action={action} label={actionLabels[action].verb} onClick={() => onAction(action)} />
+        ))}
       </header>
       <div className="read-body">
-        {card.unsubscribe && <UnsubscribeChip onClick={() => onAction('unsubscribe')} />}
+        <h2 id="read-subject" className="read-subject">
+          {thread?.subject ?? card.subject}
+        </h2>
         {problem && <p className="read-problem">{problem}</p>}
         {!thread && !problem && <div className="spinner" role="status" aria-label="Loading the conversation" />}
-        {thread?.messages.map(message => (
-          <Message
-            key={message.id}
-            message={message}
-            open={message.id === newest || opened.has(message.id)}
-            onOpen={() => setOpened(current => new Set(current).add(message.id))}
-            loadImages={loadImages}
-          />
-        ))}
-        {thread && thread.messages.length > 1 && opened.size < thread.messages.length - 1 && (
-          <button
-            type="button"
-            className="text-button expand-all"
-            onClick={() => setOpened(new Set(thread.messages.map(message => message.id)))}
-          >
-            <ChevronDown size={16} aria-hidden="true" /> Show all {thread.messages.length} messages
-          </button>
+        {thread && (
+          <div className="read-messages">
+            {thread.messages.map(message => (
+              <Message
+                key={message.id}
+                message={message}
+                me={email}
+                open={message.id === newest || opened.has(message.id)}
+                onOpen={() => setOpened(current => new Set(current).add(message.id))}
+                loadImages={loadImages}
+              />
+            ))}
+            {thread.messages.length > 1 && opened.size < thread.messages.length - 1 && (
+              <button
+                type="button"
+                className="text-button expand-all"
+                onClick={() => setOpened(new Set(thread.messages.map(message => message.id)))}
+              >
+                <ChevronDown size={16} aria-hidden="true" /> Show all {thread.messages.length} messages
+              </button>
+            )}
+          </div>
         )}
       </div>
-      <footer className="read-actions">
-        {readViewActions.map(action => {
-          const { Icon, tone } = actionUi[action];
-          return (
-            <button key={action} type="button" className={`action-button tone-${tone}`} onClick={() => onAction(action)}>
-              <Icon size={20} aria-hidden="true" />
-              <span>{actionLabels[action].verb}</span>
-            </button>
-          );
-        })}
+      <footer className="read-footer">
+        <button type="button" className="reply-button" onClick={() => onAction('reply')}>
+          <Reply size={20} aria-hidden="true" /> Reply in Gmail
+        </button>
       </footer>
     </dialog>
   );

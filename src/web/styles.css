@@ -1387,7 +1387,10 @@ label.row:has(.row-select:focus-visible)::before {
   padding: 1px 4px;
 }
 
-/* Read view: a full-screen surface with a top app bar and the docked toolbar. */
+/*
+ * Read view, laid out as Gmail does: a top bar with Back and the actions as icons, the subject as the page's title, the
+ * messages in one rounded container, and Reply at the bottom.
+ */
 .read-view {
   width: 100%;
   max-width: var(--column);
@@ -1399,31 +1402,30 @@ label.row:has(.row-select:focus-visible)::before {
   background: var(--md-surface);
   box-shadow: none;
 }
-.read-header {
+.read-top {
   display: flex;
   align-items: center;
-  gap: 4px;
   min-height: 64px;
-  padding: calc(8px + env(safe-area-inset-top)) 16px 8px 4px;
+  padding: calc(8px + env(safe-area-inset-top)) 4px 0;
 }
-.read-header h2 {
-  /* M3 title-large. */
-  font-size: 1.375rem;
-  line-height: 1.75rem;
-  font-weight: 500;
-  overflow-wrap: anywhere;
+.read-top-space {
+  flex: 1;
 }
 .read-body {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 8px 16px 24px;
+  padding: 0 12px 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
-.read-unsubscribe {
-  align-self: flex-start;
+.read-subject {
+  /* M3 headline-small, regular weight, as Gmail sets a subject. */
+  margin: 4px 8px 16px !important;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
 }
 .read-body .spinner {
   align-self: center;
@@ -1431,13 +1433,21 @@ label.row:has(.row-select:focus-visible)::before {
 }
 .read-problem {
   color: var(--md-error);
+  margin: 0 8px !important;
+}
+.read-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 24px;
+  overflow: hidden;
 }
 .message {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   border: 0;
-  border-radius: var(--shape-l);
+  border-radius: 4px;
   padding: 16px;
   background: var(--md-surface-container-lowest);
   color: var(--md-on-surface);
@@ -1445,14 +1455,14 @@ label.row:has(.row-select:focus-visible)::before {
 }
 @media (prefers-color-scheme: dark) {
   .message {
-    background: var(--md-surface-container);
+    background: var(--md-surface-container-low);
   }
 }
 .message.collapsed {
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  background: var(--md-surface-container);
+  font: inherit;
 }
 .message-collapsed-text {
   flex: 1;
@@ -1462,6 +1472,8 @@ label.row:has(.row-select:focus-visible)::before {
 }
 .message-collapsed-text strong {
   font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 .message-collapsed-text span,
 .message-collapsed-text strong {
@@ -1474,36 +1486,85 @@ label.row:has(.row-select:focus-visible)::before {
   color: var(--md-on-surface-variant);
   font-size: 0.875rem;
 }
+.message.collapsed time {
+  align-self: flex-start;
+  white-space: nowrap;
+}
 .message-header {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
 }
-.message-people {
+.message-who {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  font-size: 0.875rem;
-  color: var(--md-on-surface-variant);
-  overflow-wrap: anywhere;
+  align-items: flex-start;
 }
-.message-people strong {
-  color: var(--md-on-surface);
+.message-from {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-from strong {
   font-size: 1rem;
   line-height: 1.5rem;
   font-weight: 500;
 }
-.message-header time {
-  white-space: nowrap;
+.message-from time {
+  margin-left: 4px;
 }
-/* Email bodies stay on white in both themes: senders design them for it. */
+.message-to {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  margin: 0 0 0 -4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--shape-xs);
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: left;
+}
+.message-to[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.message-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: -4px 0 0 !important;
+  padding: 12px 16px;
+  border-radius: var(--shape-m);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.message-details dt {
+  color: var(--md-on-surface);
+}
+.message-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+/* Email bodies are designed for white. In the dark theme the frame is inverted, as Gmail darkens emails, toned so its
+   background meets the message's container; the frame inverts its pictures back. */
 .message-frame {
   width: 100%;
   border: 0;
   display: block;
-  border-radius: var(--shape-s);
   background: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  .message-frame {
+    filter: invert(1) hue-rotate(180deg) contrast(0.8);
+  }
 }
 .message-text {
   white-space: pre-wrap;
@@ -1517,32 +1578,63 @@ label.row:has(.row-select:focus-visible)::before {
 .show-images {
   align-self: flex-start;
 }
+/* Attachments as small outlined cards. */
 .attachments {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.875rem;
+  gap: 8px;
 }
 .attachments li {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-.attachments span {
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--md-outline-variant);
+  border-radius: var(--shape-m);
   color: var(--md-on-surface-variant);
+}
+.attachment-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.attachment-name {
+  color: var(--md-on-surface);
+  overflow-wrap: anywhere;
+}
+.attachment-size {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 .expand-all {
   align-self: center;
+  margin: 8px 0;
 }
-.read-actions {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.read-footer {
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  background: var(--md-surface);
+}
+.reply-button {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: var(--md-surface-container);
+  border: 0;
+  border-radius: var(--shape-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.reply-button:active {
+  background: var(--md-surface-container-highest);
 }
 
 @media (max-width: 440px) {

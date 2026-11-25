@@ -3,7 +3,8 @@ import { ImageOff } from 'lucide-react';
 
 /**
  * The frame's own rules: nothing loads except styles, fonts and (when allowed) images; no scripts run (the sandbox also
- * forbids them); links open outside the app.
+ * forbids them); links open outside the app. In the dark theme the page inverts the whole frame, as Gmail darkens
+ * emails; pictures are inverted once more here, so they keep their own colors.
  */
 function frameDocument(html: string, images: boolean): string {
   const imageSources = images ? 'https: http: data:' : 'data:';
@@ -11,7 +12,8 @@ function frameDocument(html: string, images: boolean): string {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imageSources}; style-src 'unsafe-inline' https: http:; font-src https: http: data:">
 <meta name="referrer" content="no-referrer">
 <base target="_blank">
-<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}</style>
+<style>html,body{margin:0;padding:0;overflow:hidden}body{font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:#1f2430;background:#fff;overflow-wrap:anywhere;padding:2px}img{max-width:100%;height:auto}pre{white-space:pre-wrap}
+@media (prefers-color-scheme:dark){img,picture,video,svg,[background],[style*="background-image"]{filter:invert(1) hue-rotate(180deg)}}</style>
 </head><body>${html}</body></html>`;
 }
 

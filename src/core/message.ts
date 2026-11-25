@@ -18,6 +18,37 @@ export function parsePerson(value: string): Person {
   return { name: name || address, address };
 }
 
+/** Reads an address list such as a To header: `"Doe, Jane" <jane@example.com>, bob@example.com`. Commas inside quotes or angle brackets do not split it. */
+export function parseAddressList(value: string): Person[] {
+  const people: Person[] = [];
+  let current = '';
+  let quoted = false;
+  let angled = false;
+  for (const char of value) {
+    if (char === '"') quoted = !quoted;
+    else if (char === '<' && !quoted) angled = true;
+    else if (char === '>' && !quoted) angled = false;
+    if (char === ',' && !quoted && !angled) {
+      if (current.trim()) people.push(parsePerson(current));
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) people.push(parsePerson(current));
+  return people;
+}
+
+/**
+ * Who a message went to, in brief, as Gmail writes it: "me, Ann Smith". The signed-in address reads "me"; others show
+ * their name, or their address when they have none.
+ */
+export function recipientsText(to: string, cc: string, me: string): string {
+  const people = [...parseAddressList(to), ...parseAddressList(cc)];
+  const names = people.map(person => (person.address.toLowerCase() === me.toLowerCase() ? 'me' : person.name || person.address));
+  return [...new Set(names)].join(', ');
+}
+
 const namedEntities: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
 /** Gmail's snippets are HTML-escaped text. */

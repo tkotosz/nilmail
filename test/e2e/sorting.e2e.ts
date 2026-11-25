@@ -242,7 +242,12 @@ test('swiping up opens the conversation, marks it read, and an action there sort
   assert.deepEqual(gmail.changes[0], { thread: 'thread000', op: 'modify', add: [], remove: ['UNREAD'] });
   assert.equal(await frame.getByRole('link', { name: 'A link' }).getAttribute('href'), 'https://example.com/0');
   await page.getByRole('button', { name: /Show all 2 messages/ }).waitFor();
-  await page.screenshot({ path: `${screenshots}read.png` });
+  const recipients = view.getByRole('button', { name: 'to me' });
+  await recipients.click();
+  assert.equal(await recipients.getAttribute('aria-expanded'), 'true');
+  await view.getByText('Anna Kovács <anna@example.com>').waitFor();
+  await recipients.click();
+  await page.screenshot({ path: `${screenshots}read.png`, animations: 'disabled' });
 
   await view.getByRole('button', { name: 'Back to the deck' }).click();
   await view.waitFor({ state: 'hidden' });

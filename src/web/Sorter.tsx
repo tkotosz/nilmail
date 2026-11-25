@@ -455,6 +455,7 @@ export function Sorter({
         <ReadView
           card={reading}
           gmail={gmail}
+          email={email}
           loadImages={settings.loadImages}
           onClose={() => setReading(null)}
           onAction={action => {
