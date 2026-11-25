@@ -129,6 +129,23 @@ export function httpGmail(session: Session): WebGmail {
 export const gmailLink = (email: string, threadId: string) =>
   `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#all/${encodeURIComponent(threadId)}`;
 
+/**
+ * The same conversation as an Android intent that names the Gmail app, so Chrome hands it to the app instead of opening
+ * a tab. The Gmail app is a verified handler of mail.google.com links (https://mail.google.com/.well-known/assetlinks.json),
+ * but Chrome opens a link from a script in the browser. When Gmail is missing, Chrome offers it from the Play Store.
+ * https://developer.chrome.com/docs/android/intents
+ */
+export function gmailAppLink(email: string, threadId: string): string {
+  const web = new URL(gmailLink(email, threadId));
+  return `intent://${web.host}${web.pathname}${web.search}${web.hash}#Intent;scheme=https;package=com.google.android.gm;end`;
+}
+
+/** Opens the conversation in Gmail: in the Gmail app on Android, in a new tab elsewhere. */
+export function openInGmail(email: string, threadId: string): void {
+  if (/Android/.test(navigator.userAgent)) window.location.assign(gmailAppLink(email, threadId));
+  else window.open(gmailLink(email, threadId), '_blank', 'noopener');
+}
+
 /** A sentence for the user about a failed Gmail call. */
 export function problemText(error: unknown): string {
   if (error instanceof GmailError && error.status === 0) return 'Gmail could not be reached. Check your connection.';

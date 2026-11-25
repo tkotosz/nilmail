@@ -23,7 +23,7 @@ import { ReadView } from './components/ReadView.tsx';
 import { SettingsForm, settingsOpened } from './components/SettingsForm.tsx';
 import { SwipeCard, type SwipeAction, type SwipeCardHandle } from './components/SwipeCard.tsx';
 import { useSwipeKeys } from './components/useSwipeKeys.ts';
-import { gmailLink, problemText, type LabelCounts, type WebGmail } from './gmail-http.ts';
+import { openInGmail, problemText, type LabelCounts, type WebGmail } from './gmail-http.ts';
 import { SessionError } from './session.ts';
 import { sendUnsubscribe, unsubscribeDone } from './unsubscribe.ts';
 import { loadSettings, saveSettings } from './storage.ts';
@@ -222,7 +222,7 @@ export function Sorter({
     const has = (id: ActionId) => done.actions.some(action => action.id === id);
     // Read, Reply and Skip only come on their own.
     if (has('read')) return openReadView(card);
-    if (has('reply')) window.open(gmailLink(email, card.threadId), '_blank', 'noopener');
+    if (has('reply')) openInGmail(email, card.threadId);
     const unsubscribing = has('unsubscribe') && card.unsubscribe;
     if (unsubscribing) {
       sendUnsubscribe(unsubscribing).catch(() =>
