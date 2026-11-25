@@ -8,7 +8,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
 
 - **Piles.** A pile is a set of filters with its own swipes; the picker in the header switches between them, and the app opens on the first.
   - Filters: unread, read or either; in the inbox, archived or anywhere; labels it has; labels it doesn't have; and any Gmail search.
-  - Unread (unread inbox mail) and Read (read inbox mail) come first, and can be edited, reordered or deleted like any other pile.
+  - Unread (unread inbox mail) is the one pile at the start. It can be edited, reordered or deleted like any other; add a Read pile (read inbox mail) or any other you need.
   - A pile loads a few conversations at a time, however much mail matches.
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.
   - The picker shows each pile's count: exact where Gmail keeps one (the inbox, or a pile on a single label), otherwise Gmail's estimate, shown as `~120`.
@@ -17,7 +17,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
   - right: Archive (also marks it read)
   - left: Delete (moves it to the Bin)
   - up: Read (opens the whole conversation)
-  - down: Mark read in Unread, Skip in other piles
+  - down: Mark read in Unread, Skip in piles you add
 
   The same actions are on the buttons under the card and on the arrow keys.
 - **Label actions** move mail between piles: Add labels (one or more, and optionally archive), Remove label, and Remove all labels (only labels you made; Inbox, Starred and the like stay).

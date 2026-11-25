@@ -1,21 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultSwipes, newPile, readPile, swipe, unreadPile } from '../src/core/pile.ts';
+import { defaultSwipes, newPile, swipe, unreadPile } from '../src/core/pile.ts';
 import { defaultSettings, restoreSettings, withCurrentLabels } from '../src/core/settings.ts';
 
 const later = { id: 'Label_1', name: 'Later' };
 const bills = { id: 'Label_2', name: 'Bills' };
 
-test('missing or broken settings fall back to the Unread and Read piles', () => {
+test('missing or broken settings fall back to the Unread pile, the only default', () => {
   assert.deepEqual(restoreSettings(null), defaultSettings);
   assert.deepEqual(restoreSettings('nonsense'), defaultSettings);
   assert.deepEqual(restoreSettings({ piles: [{ name: 'No id' }, { id: 'x', name: '  ' }] }).piles, defaultSettings.piles);
   assert.deepEqual(
     defaultSettings.piles.map(pile => pile.name),
-    ['Unread', 'Read'],
+    ['Unread'],
   );
   assert.equal(unreadPile.swipes.down.action, 'markRead');
-  assert.equal(readPile.swipes.down.action, 'skip');
+  assert.equal(newPile('p1', 'Later').swipes.down.action, 'skip', 'piles the user adds skip on down');
 });
 
 test('a saved pile keeps its filters and swipes; anything invalid falls back', () => {
@@ -57,7 +57,7 @@ test('a saved pile keeps its filters and swipes; anything invalid falls back', (
   assert.equal(restored.archiveMarksRead, false);
 });
 
-test('settings from before piles become the Unread and Read piles, with their swipes and search', () => {
+test('settings from before piles become the Unread pile, with its swipes and search; Read is left out', () => {
   const restored = restoreSettings({
     swipes: {
       unread: { gestures: { right: 'archive', left: 'label', up: 'read', down: 'markRead' }, labels: { left: later } },
@@ -71,10 +71,7 @@ test('settings from before piles become the Unread and Read piles, with their sw
     ...unreadPile,
     swipes: { ...unreadPile.swipes, left: swipe('addLabels', [later], true) },
   });
-  assert.deepEqual(restored.piles[1], {
-    ...readPile,
-    swipes: { ...readPile.swipes, right: swipe('delete'), left: swipe('archive') },
-  });
+  assert.equal(restored.piles.length, 1);
   assert.equal(restored.loadImages, false);
 
   const custom = restoreSettings({ query: 'in:inbox is:unread category:promotions' });

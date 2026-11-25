@@ -1,4 +1,4 @@
-import { defaultSwipes, readPile, swipe, unreadPile } from './pile.ts';
+import { defaultSwipes, swipe, unreadPile } from './pile.ts';
 import {
   directions,
   gestureActionIds,
@@ -15,7 +15,7 @@ import {
 const oldDefaultQuery = 'in:inbox is:unread';
 
 export const defaultSettings: Settings = {
-  piles: [unreadPile, readPile],
+  piles: [unreadPile],
   archiveMarksRead: true,
   loadImages: true,
 };
@@ -99,7 +99,10 @@ function oldSwipes(saved: unknown, fallback: Record<Direction, Swipe>): Record<D
   ) as Record<Direction, Swipe>;
 }
 
-/** Settings from before piles: the Unread and Read decks become the first two piles, with their swipes and search. */
+/**
+ * Settings from before piles: the Unread deck becomes the one pile, with its swipes and search. The Read deck is left
+ * out, as it is not a default pile; the user can add it.
+ */
 function fromDecks(input: Record<string, unknown>): Pile[] {
   const swipes = asRecord(input.swipes);
   const query = typeof input.query === 'string' ? input.query.trim() : '';
@@ -107,15 +110,12 @@ function fromDecks(input: Record<string, unknown>): Pile[] {
     query && query !== oldDefaultQuery
       ? { ...unreadPile, filters: { read: 'any', where: 'anywhere', hasLabels: [], lacksLabels: [], search: query } }
       : unreadPile;
-  return [
-    { ...unread, swipes: oldSwipes(swipes.unread, unreadPile.swipes) },
-    { ...readPile, swipes: oldSwipes(swipes.read, readPile.swipes) },
-  ];
+  return [{ ...unread, swipes: oldSwipes(swipes.unread, unreadPile.swipes) }];
 }
 
 /**
  * Turns saved settings, possibly from an older version or edited by hand, into valid settings. Settings from before piles
- * become the Unread and Read piles. Without a valid pile, the default piles come back.
+ * become the Unread pile. Without a valid pile, the default pile comes back.
  */
 export function restoreSettings(saved: unknown): Settings {
   const input = asRecord(saved);

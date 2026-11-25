@@ -47,6 +47,20 @@ const downSkips = {
   },
 };
 
+const inbox = (read: 'unread' | 'read') => ({ read, where: 'inbox', hasLabels: [], lacksLabels: [], search: '' });
+/** Saved settings with a Read pile added after Unread, as a user would add it. */
+const unreadAndRead = {
+  piles: [
+    {
+      id: 'unread',
+      name: 'Unread',
+      filters: inbox('unread'),
+      swipes: { down: { action: 'markRead', labels: [], archive: true } },
+    },
+    { id: 'read', name: 'Read', filters: inbox('read'), swipes: {} },
+  ],
+};
+
 async function open(
   gmail: FakeGmail | null,
   {
@@ -353,7 +367,7 @@ test('each pile has its own swipes in settings, and they stay after a reload', a
     index < 2 ? thread : { ...thread, labelIds: thread.labelIds.filter(label => label !== 'UNREAD') },
   );
   const gmail = new FakeGmail(threads);
-  const { page, errors } = await open(gmail);
+  const { page, errors } = await open(gmail, { settings: unreadAndRead });
   await waitForCard(page);
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: /^Edit Unread/ }).click();
@@ -528,7 +542,7 @@ test('the picker switches to read conversations, with their own swipes, and back
     index < 3 ? thread : { ...thread, labelIds: thread.labelIds.filter(label => label !== 'UNREAD') },
   );
   const gmail = new FakeGmail(threads);
-  const { page, errors } = await open(gmail);
+  const { page, errors } = await open(gmail, { settings: unreadAndRead });
   await waitForCard(page);
   assert.equal(await topSubject(page), 'Message number 1', 'the app starts on unread');
   await waitForCount(page, 'Unread · 3');

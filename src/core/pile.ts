@@ -81,13 +81,6 @@ export const unreadPile: Pile = {
 /** The swipes of a new pile, where down skips. */
 export const defaultSwipes = swipes('skip');
 
-export const readPile: Pile = {
-  id: 'read',
-  name: 'Read',
-  filters: { read: 'read', where: 'inbox', hasLabels: [], lacksLabels: [], search: '' },
-  swipes: defaultSwipes,
-};
-
 /** A pile the user adds: unread inbox mail and the default swipes, until they change it. */
 export const newPile = (id: string, name: string): Pile => ({
   id,
