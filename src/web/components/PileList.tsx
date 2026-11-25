@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { ChevronRight, Layers, Menu, Plus } from 'lucide-react';
+import { Layers, Menu, Plus } from 'lucide-react';
 import { pileSummary } from '../../core/pile.ts';
 import type { Pile } from '../../core/types.ts';
 import { Group, RowIcon } from './SettingsRows.tsx';
@@ -103,7 +103,6 @@ export function PileList({
               <span className="row-title">{pile.name || 'Unnamed pile'}</span>
               <span className="row-value">{pileSummary(pile.filters)}</span>
             </span>
-            <ChevronRight size={20} aria-hidden="true" className="row-trailing" />
           </button>
           {piles.length > 1 && (
             <button
