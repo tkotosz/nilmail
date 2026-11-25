@@ -5,7 +5,7 @@ export const directions: readonly Direction[] = ['left', 'down', 'up', 'right'];
 
 /** What the user can do with a conversation. */
 export type ActionId =
-  'markRead' | 'archive' | 'delete' | 'addLabel' | 'removeLabel' | 'removeAllLabels' | 'read' | 'reply' | 'skip' | 'unsubscribe';
+  'markRead' | 'archive' | 'delete' | 'addLabel' | 'removeLabel' | 'removeAllLabels' | 'read' | 'skip' | 'unsubscribe';
 
 /**
  * The actions a swipe can do, in the order Settings offers them. Unsubscribe is left out: only some conversations offer
@@ -19,12 +19,11 @@ export const gestureActionIds: readonly ActionId[] = [
   'removeLabel',
   'removeAllLabels',
   'read',
-  'reply',
   'skip',
 ];
 
-/** Actions that only work on their own: Read opens the conversation, Reply opens Gmail, Skip does nothing. */
-export const standaloneActionIds: readonly ActionId[] = ['read', 'reply', 'skip'];
+/** Actions that only work on their own: Read opens the conversation, Skip does nothing. */
+export const standaloneActionIds: readonly ActionId[] = ['read', 'skip'];
 
 /** A Gmail label the user made, such as "Later". */
 export interface GmailLabel {

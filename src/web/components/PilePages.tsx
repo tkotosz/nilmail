@@ -254,7 +254,7 @@ function PileMain({
 /** Whether two actions are the same: the same kind, and for label actions the same label. */
 const sameAction = (a: Action, b: Action) => a.id === b.id && a.label?.id === b.label?.id;
 
-/** Adds `action` to a swipe: Read, Reply and Skip replace its list, and anything added to them replaces them. */
+/** Adds `action` to a swipe: Read and Skip replace its list, and anything added to them replaces them. */
 function withAction(current: Swipe, action: Action): Swipe {
   if (current.actions.some(item => sameAction(item, action))) return current;
   const alone = standaloneActionIds.includes(action.id);
@@ -322,7 +322,7 @@ function SwipePage({
         </button>
       </Group>
       <p className="group-note">
-        All of them happen with one swipe, and one undo reverses them. Read, Reply and Skip work only on their own.
+        All of them happen with one swipe, and one undo reverses them. Read and Skip work only on their own.
       </p>
       {current.actions.length > 0 && coversSender(current) && (
         <Group>
@@ -397,7 +397,7 @@ function AddActionPage({
         <ActionChoice action="removeAllLabels" done={has('removeAllLabels')} onClick={() => add('removeAllLabels')} />
       </Group>
       <Group title="On their own">
-        {(['read', 'reply', 'skip'] as const).map(id => (
+        {(['read', 'skip'] as const).map(id => (
           <ActionChoice key={id} action={id} done={has(id)} note="Replaces the other actions" onClick={() => add(id)} />
         ))}
       </Group>

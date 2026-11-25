@@ -76,7 +76,7 @@ function oldActions(input: Record<string, unknown>, archiveMarksRead: boolean): 
 
 /**
  * One saved swipe, or `fallback` when it has no action that can work. Each action counts once, and an action that only
- * works on its own (Read, Reply, Skip) replaces the rest. Unsubscribe is never a swipe: only some conversations offer it.
+ * works on its own (Read, Skip) replaces the rest. A Reply saved before Reply was removed is dropped. Unsubscribe is never a swipe: only some conversations offer it.
  */
 function restoreSwipe(saved: unknown, fallback: Swipe, archiveMarksRead: boolean): Swipe {
   const input = asRecord(saved);

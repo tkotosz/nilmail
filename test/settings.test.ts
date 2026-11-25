@@ -96,7 +96,7 @@ test('saved Archive swipes keep marking read while the old setting was on, which
   assert.ok(!('archiveMarksRead' in restoreSettings({ archiveMarksRead: true })), 'the setting itself is gone');
 });
 
-test('a swipe of several actions is restored; each counts once, and Read, Reply or Skip stand alone', () => {
+test('a swipe of several actions is restored; each counts once, Read or Skip stand alone, and Reply is gone', () => {
   const restore = (saved: unknown) =>
     restoreSettings({ piles: [{ id: 'p', name: 'P', swipes: { right: saved } }] }).piles[0]!.swipes.right;
   assert.deepEqual(
@@ -105,7 +105,9 @@ test('a swipe of several actions is restored; each counts once, and Read, Reply 
     }),
     { actions: [{ id: 'markRead' }, addLabel(later), { id: 'archive' }], allFromSender: false, name: '' },
   );
-  assert.deepEqual(restore({ actions: [{ id: 'archive' }, { id: 'reply' }] }), swipeOf('reply'));
+  assert.deepEqual(restore({ actions: [{ id: 'archive' }, { id: 'skip' }] }), swipeOf('skip'));
+  assert.deepEqual(restore({ actions: [{ id: 'reply' }] }), defaultSwipes.right, 'a saved Reply swipe falls back');
+  assert.deepEqual(restore({ action: 'reply' }), defaultSwipes.right);
   assert.deepEqual(restore({ actions: [] }), defaultSwipes.right, 'a swipe with no action falls back');
   assert.deepEqual(restore({ actions: [{ id: 'unsubscribe' }] }), defaultSwipes.right, 'unsubscribe is not a swipe');
 });

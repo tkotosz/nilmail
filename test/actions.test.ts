@@ -38,9 +38,8 @@ test('an action only removes labels the thread has, so undo never adds one it la
   assert.deepEqual(stepsFor(swipeOf('markRead'), read), [], 'marking a read thread read changes nothing');
 });
 
-test('reply and skip change nothing in Gmail; read removes UNREAD; unsubscribe marks read and archives', () => {
+test('skip changes nothing in Gmail; read removes UNREAD; unsubscribe marks read and archives', () => {
   const unread = card(['INBOX', 'UNREAD']);
-  assert.deepEqual(stepsFor(swipeOf('reply'), unread), []);
   assert.deepEqual(stepsFor(swipeOf('skip'), unread), []);
   assert.deepEqual(stepsFor(swipeOf('read'), unread), [{ op: 'modify', add: [], remove: ['UNREAD'] }]);
   assert.deepEqual(stepsFor(swipeOf('unsubscribe'), unread), [{ op: 'modify', add: [], remove: ['INBOX', 'UNREAD'] }]);
@@ -124,7 +123,7 @@ test("a swipe's icon and color come from its most telling action", () => {
   assert.equal(mainAction(withLabels({ id: 'markRead' }, { id: 'addLabel', label: later })), 'addLabel');
   assert.equal(mainAction(swipeOf('skip')), 'skip');
   assert.ok(coversSender(swipeOf('markRead', 'archive')));
-  assert.ok(!coversSender(swipeOf('reply')));
+  assert.ok(!coversSender(swipeOf('read')));
 });
 
 test('a card keeps up with its label changes', () => {

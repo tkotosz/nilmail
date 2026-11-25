@@ -13,7 +13,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
   - Each card shows the latest message: sender, subject, date and Gmail's preview text.
   - Each tab shows its pile's count: exact where Gmail keeps one (the inbox, or a pile on a single label), otherwise Gmail's estimate, shown as `~120`.
   - Refresh, in the header, starts again from the newest conversation and brings back skipped ones.
-- **Four swipes per pile, each with one or more actions.** You set each direction's actions in settings, separately for each pile; one swipe does them all and one undo reverses them. Read, Reply and Skip work only on their own. A swipe can have a name, which its button shows. The defaults are:
+- **Four swipes per pile, each with one or more actions.** You set each direction's actions in settings, separately for each pile; one swipe does them all and one undo reverses them. Read and Skip work only on their own. A swipe can have a name, which its button shows. The defaults are:
   - right: Mark read + Archive
   - left: Delete (moves it to the Bin)
   - up: Read (opens the whole conversation)
@@ -25,7 +25,7 @@ It runs in the browser on a computer and installs as an app on Android. It is a 
 - **Label actions** move mail between piles: Add label and Remove label, each with one label and as many as you like, and Remove all labels (only labels you made; Inbox, Starred and the like stay). For example: Remove label *todo* + Add label *done* + Archive.
 - **All from the sender.** A swipe can be set, in its settings, to cover every conversation from the card's sender in the pile (up to 100), with one undo.
 - **Unsubscribe** is in the read view's top bar when the sender offers it.
-- **The read view** (swipe up) also offers Reply, which opens the conversation in Gmail, and Skip.
+- **The read view** (swipe up) shows the whole conversation, with Archive, Delete, Skip and, when the sender offers it, Unsubscribe.
 - **Material 3 design**, in light and dark, following the system setting.
 - **Undo** reverses any of the last 20 actions in Gmail. Use the bar that appears after each action, or Ctrl+Z.
 - **Private by design.** Mail goes straight from Gmail to your device. The server part only renews the sign-in and stores nothing.

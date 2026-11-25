@@ -10,7 +10,6 @@ export const actionLabels: Record<ActionId, { verb: string; done: string }> = {
   removeLabel: { verb: 'Remove label', done: 'Label removed' },
   removeAllLabels: { verb: 'Remove all labels', done: 'Labels removed' },
   read: { verb: 'Read', done: 'Opened' },
-  reply: { verb: 'Reply', done: 'Opened in Gmail' },
   skip: { verb: 'Skip', done: 'Skipped' },
   unsubscribe: { verb: 'Unsubscribe', done: 'Unsubscribed and archived' },
 };
@@ -57,16 +56,15 @@ export function mainAction(swipe: Swipe): ActionId {
   return order.find(id => ids.includes(id)) ?? ids[0] ?? 'skip';
 }
 
-/** Read and Reply are about one conversation; the other actions can cover all from a sender at once. */
-export const coversSender = (swipe: Swipe) => !swipe.actions.some(action => action.id === 'read' || action.id === 'reply');
+/** Read is about one conversation; the other actions can cover all from a sender at once. */
+export const coversSender = (swipe: Swipe) => !swipe.actions.some(action => action.id === 'read');
 
 export const isUnread = (card: MailCard) => card.labelIds.includes('UNREAD');
 
 /**
  * What a swipe changes in Gmail. Its label changes merge into one step, which adds only labels the thread lacks and removes
  * only labels it has, so undo restores it exactly; a label both added and removed (Remove all labels and Add label) is
- * added. Delete moves it to the Bin after that. Read takes off UNREAD when the read view opens; Reply and Skip change
- * nothing. Unsubscribe marks read and archives: the request to the sender is not a Gmail change. Remove all labels takes
+ * added. Delete moves it to the Bin after that. Read takes off UNREAD when the read view opens; Skip changes nothing. Unsubscribe marks read and archives: the request to the sender is not a Gmail change. Remove all labels takes
  * off only labels the user made, never Gmail's own, such as INBOX, UNREAD or STARRED.
  */
 export function stepsFor(swipe: Swipe, card: MailCard): GmailStep[] {
@@ -98,7 +96,6 @@ export function stepsFor(swipe: Swipe, card: MailCard): GmailStep[] {
       case 'removeAllLabels':
         for (const id of card.labelIds.filter(isUserLabel)) remove.add(id);
         break;
-      case 'reply':
       case 'skip':
         break;
     }

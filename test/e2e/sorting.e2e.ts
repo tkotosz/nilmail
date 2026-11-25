@@ -429,20 +429,22 @@ for (const colorScheme of ['light', 'dark'] as const) {
   });
 }
 
-test('cards have no buttons of their own; reply, from the read view, opens the conversation in Gmail', async () => {
+test('cards have no buttons of their own, and nothing offers Reply', async () => {
   const gmail = new FakeGmail(sampleThreads(3));
-  const { page } = await open(gmail);
-  await page.context().route('https://mail.google.com/**', route => route.fulfill({ body: 'Gmail' }));
+  const { page, errors } = await open(gmail);
   await waitForCard(page);
   assert.equal(await page.locator('.swipe-card button').count(), 0, 'the card itself has no buttons');
   await page.keyboard.press('ArrowUp');
   const view = page.locator('dialog.read-view');
   await view.waitFor();
-  const [popup] = await Promise.all([page.waitForEvent('popup'), view.getByRole('button', { name: 'Reply' }).click()]);
-  assert.equal(popup.url(), 'https://mail.google.com/mail/?authuser=me%40example.com#all/thread000');
-  assert.equal(await topSubject(page), 'Message number 2');
-  await settle(gmail, 1);
-  assert.equal(gmail.changes.length, 1, 'only opening it changed Gmail: it marked it read');
+  assert.equal(await view.getByRole('button', { name: /Reply/ }).count(), 0, 'the read view has no Reply');
+  await view.getByRole('button', { name: 'Back to the deck' }).click();
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: /^Edit Unread/ }).click();
+  await openSwipe(page, 'Left');
+  await page.locator('dialog.settings-dialog').getByRole('button', { name: 'Add an action' }).click();
+  assert.equal(await page.locator('dialog.settings-dialog').getByRole('button', { name: /Reply/ }).count(), 0);
+  assert.deepEqual(errors, []);
   await page.context().close();
 });
 

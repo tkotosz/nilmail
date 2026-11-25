@@ -1342,7 +1342,7 @@ label.row:has(.row-select:focus-visible)::before {
 
 /*
  * Read view, laid out as Gmail does: a top bar with Back and the actions as icons, the subject as the page's title, the
- * messages in one rounded container, and Reply at the bottom.
+ * messages in one rounded container.
  */
 .read-view {
   width: 100%;
@@ -1578,29 +1578,6 @@ label.row:has(.row-select:focus-visible)::before {
   align-self: center;
   margin: 8px 0;
 }
-.read-footer {
-  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  background: var(--md-surface);
-}
-.reply-button {
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 0;
-  border-radius: var(--shape-full);
-  background: var(--md-surface-container-high);
-  color: var(--md-on-surface);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-.reply-button:active {
-  background: var(--md-surface-container-highest);
-}
 
 @media (max-width: 440px) {
   .top-actions .quiet-button {
@@ -1639,14 +1616,4 @@ label.row:has(.row-select:focus-visible)::before {
 }
 [hidden] {
   display: none !important;
-}
-
-/* TEMPORARY: the Gmail link test on preview builds. */
-.link-test {
-  padding: 8px 16px;
-  font-size: 0.875rem;
-}
-.link-test a {
-  display: block;
-  padding: 10px 0;
 }
