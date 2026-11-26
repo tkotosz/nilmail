@@ -4,7 +4,7 @@ import { senderSearch } from './pile.ts';
 import type { ActionId, GmailSearch, GmailStep, MailCard } from './types.ts';
 
 /** One conversation a decision changed. */
-export interface ThreadChange {
+interface ThreadChange {
   /** The card as it was before the action. */
   card: MailCard;
   /** The steps that put Gmail back. */
@@ -132,7 +132,7 @@ export function reduceDeck(state: DeckState, event: DeckEvent): DeckState {
 }
 
 /** How many conversations from one sender a decision can cover. */
-export const senderLimit = 100;
+const senderLimit = 100;
 
 /**
  * The other conversations of the deck's search from the card's sender, newest first, at most `senderLimit` with the
@@ -151,7 +151,7 @@ export async function findFromSender(
 }
 
 /** How many cards are left before the next batch loads. */
-export const refillAt = 5;
+const refillAt = 5;
 
 /** Whether the deck should load its next batch now. */
 export const needsCards = (state: DeckState) => state.more && !state.loading && state.cards.length <= refillAt;

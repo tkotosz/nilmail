@@ -5,7 +5,7 @@
 // - Safari on iPhone and iPad never announces it; people install with Share → Add to Home Screen.
 
 /** Chromium's install prompt event, which the DOM types do not include. */
-export interface InstallPromptEvent extends Event {
+interface InstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 

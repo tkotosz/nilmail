@@ -28,7 +28,7 @@ export type PilePage =
   | { name: 'addAction'; direction: Direction }
   | { name: 'pickLabel'; direction: Direction; action: 'addLabel' | 'removeLabel' };
 
-export const gestureOrder: Direction[] = ['left', 'right', 'up', 'down'];
+const gestureOrder: Direction[] = ['left', 'right', 'up', 'down'];
 
 /** The header's title on a page of a pile, such as "→ Right swipe" or "Add label". */
 export function pageTitle(pile: Pile, page: PilePage): string {
@@ -50,8 +50,8 @@ export function pageTitle(pile: Pile, page: PilePage): string {
 
 const names = (labels: GmailLabel[]) => labels.map(label => label.name).join(', ') || 'None';
 
-/** What a swipe does, in words, such as "Delete" or "Add labels: Later, and archive". */
-export function swipeText(chosen: Swipe): string {
+/** What a swipe does, in words, such as "Mark read, archive" or "Done · Add Later, archive" when it has a name. */
+function swipeText(chosen: Swipe): string {
   const parts = chosen.actions.map(action => {
     if (action.id === 'addLabel' && action.label) return `add ${action.label.name}`;
     if (action.id === 'removeLabel' && action.label) return `remove ${action.label.name}`;

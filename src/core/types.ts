@@ -99,7 +99,7 @@ export interface PileFilters {
   search: string;
 }
 
-/** A saved set of filters with its own swipes; the header picker lists them. */
+/** A saved set of filters with its own swipes; each has a tab under the header. */
 export interface Pile {
   id: string;
   name: string;
@@ -108,7 +108,7 @@ export interface Pile {
 }
 
 export interface Settings {
-  /** In the picker's order; the app opens on the first. There is always at least one. */
+  /** In the tabs' order; the app opens on the first. There is always at least one. */
   piles: Pile[];
   /** Remote images in the read view load without asking. */
   loadImages: boolean;

@@ -33,14 +33,13 @@ function problemWith(piles: Pile[]): { place: NonNullable<Place>; text: string }
  * A history entry of Settings: the page it shows and how many entries Settings has pushed, the first when it opened. The
  * phone's Back then steps up through the pages and, from the list of piles, closes Settings.
  */
-export interface SettingsEntry {
+interface SettingsEntry {
   nilmail: 'settings';
   place: Place;
   depth: number;
 }
 
-export const isSettingsEntry = (state: unknown): state is SettingsEntry =>
-  (state as SettingsEntry | null)?.nilmail === 'settings';
+const isSettingsEntry = (state: unknown): state is SettingsEntry => (state as SettingsEntry | null)?.nilmail === 'settings';
 
 /** The entry Settings opens with: the list of piles. */
 export const settingsOpened: SettingsEntry = { nilmail: 'settings', place: null, depth: 1 };
@@ -49,7 +48,7 @@ export const settingsOpened: SettingsEntry = { nilmail: 'settings', place: null,
 const saveDelay = 600;
 
 /**
- * Settings save as they change. A change that cannot work yet, such as an Add labels swipe without a label, waits with a
+ * Settings save as they change. A change that cannot work yet, such as a swipe left with no action, waits with a
  * notice until it is complete; closing then asks whether to drop it.
  */
 export function SettingsForm({

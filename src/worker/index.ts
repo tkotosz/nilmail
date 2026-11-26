@@ -1,7 +1,7 @@
 import assets from 'nilmail-assets';
 import { serveAuth, type AuthEnv } from './auth.ts';
 
-export interface Env extends AuthEnv {
+interface Env extends AuthEnv {
   /** Cloudflare Pages' static files; the local server embeds them instead. */
   ASSETS?: { fetch(request: Request): Promise<Response> };
 }

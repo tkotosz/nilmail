@@ -148,7 +148,7 @@ function leaves(part: GmailPart | undefined): GmailPart[] {
   return part.parts?.length ? part.parts.flatMap(leaves) : [part];
 }
 
-export function messageView(message: GmailMessage): MessageView {
+function messageView(message: GmailMessage): MessageView {
   const headers = message.payload?.headers;
   const parts = leaves(message.payload);
   const body = (mimeType: string) => {

@@ -55,9 +55,6 @@
   --teal: #006b5b;
   --teal-container: #b4eedf;
   --on-teal-container: #00201a;
-  --violet: #8739b2;
-  --violet-container: #f6d9ff;
-  --on-violet-container: #281235;
   --gray: #5d5e67;
   --gray-container: #e2e1ec;
   --on-gray-container: #1a1b23;
@@ -127,9 +124,6 @@
     --teal: #78d7c2;
     --teal-container: #135045;
     --on-teal-container: #b4eedf;
-    --violet: #e7b4ff;
-    --violet-container: #563d63;
-    --on-violet-container: #f6d9ff;
     --gray: #c6c5d0;
     --gray-container: #45464f;
     --on-gray-container: #e2e1ec;
@@ -341,11 +335,6 @@ svg {
   --tone: var(--blue);
   --tone-container: var(--blue-container);
   --on-tone-container: var(--on-blue-container);
-}
-.tone-violet {
-  --tone: var(--violet);
-  --tone-container: var(--violet-container);
-  --on-tone-container: var(--on-violet-container);
 }
 .tone-gray {
   --tone: var(--gray);
@@ -1097,8 +1086,7 @@ label.row:has(.row-select:focus-visible)::before {
 .field-row:focus-within .row-label {
   color: var(--md-primary);
 }
-.row input[type='checkbox']:focus-visible,
-.row input[type='radio']:focus-visible {
+.row input[type='checkbox']:focus-visible {
   outline-offset: 2px;
 }
 .row-text {
@@ -1126,8 +1114,7 @@ label.row:has(.row-select:focus-visible)::before {
   flex: none;
   color: var(--md-on-surface-variant);
 }
-.row input[type='checkbox'],
-.row input[type='radio'] {
+.row input[type='checkbox'] {
   width: 20px;
   height: 20px;
   margin: 0 2px;
@@ -1326,18 +1313,6 @@ label.row:has(.row-select:focus-visible)::before {
   background: var(--md-error-container);
   color: var(--md-on-error-container) !important;
   font-size: 0.875rem;
-}
-.hint {
-  color: var(--md-on-surface-variant);
-  font-size: 0.75rem;
-  line-height: 1rem;
-  margin: 0 !important;
-}
-.hint code {
-  font-size: 0.75rem;
-  background: var(--md-surface-container-highest);
-  border-radius: var(--shape-xs);
-  padding: 1px 4px;
 }
 
 /*

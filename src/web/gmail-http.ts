@@ -10,7 +10,7 @@ const base = 'https://gmail.googleapis.com/gmail/v1/users/me';
 /** The headers a card needs; see `cardFromThread`. */
 const metadataHeaders = ['From', 'Subject', 'Date', 'List-Unsubscribe', 'List-Unsubscribe-Post'];
 
-export class GmailError extends Error {
+class GmailError extends Error {
   /** The HTTP status, or 0 when Gmail could not be reached. */
   readonly status: number;
   constructor(status: number, message: string) {

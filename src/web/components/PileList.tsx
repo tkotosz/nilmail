@@ -36,7 +36,7 @@ function shiftFor(drag: Drag, at: number, to: number): number {
 }
 
 /**
- * The piles in the picker's order, each with its filters in brief, to open, add, or reorder by dragging its handle. The
+ * The piles in the tabs' order, each with its filters in brief, to open, add, or reorder by dragging its handle. The
  * handle also takes the arrow keys, for a keyboard.
  */
 export function PileList({

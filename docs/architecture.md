@@ -23,7 +23,7 @@ browser                                              Cloudflare
 
 `src/core` holds plain types and functions with no browser or Worker dependencies.
 - `types.ts`: cards, actions, swipes, piles, settings and the read view's message shape.
-- `actions.ts`: what each action changes in Gmail, as a list of steps, and the steps that undo them.
+- `actions.ts`: what a swipe's actions change in Gmail, merged into a list of steps, the steps that undo them, and the text a swipe shows.
 - `deck.ts`: the deck as a reducer (cards waiting, threads seen, undo history) and `loadCards`, which fetches the next batch through the `Gmail` interface.
 - `pile.ts`: a pile's filters as a Gmail search (search text plus required label ids), how a pile can be counted, and the default piles.
 - `gmail.ts`: the parts of Gmail's thread resource the app reads, the `Gmail` interface, and `applyToGmail`.
@@ -57,7 +57,9 @@ The Worker stores nothing and never sees mail. The allow-list comes from the `AL
 
 `session.ts` keeps the access token in memory and renews it before it expires. `gmail-http.ts` is the Gmail client. `unsubscribe.ts` follows a sender's `List-Unsubscribe` header from the browser.
 
-The read view renders HTML email in a sandboxed frame with no scripts and a restrictive content security policy.
+The read view renders HTML email in a sandboxed frame with no scripts and a restrictive content security policy. The page prepares each email as soon as its text is parsed, without waiting for pictures: it zooms a wide newsletter out to fit and, in the dark theme, darkens it as Gmail does (`email-dark.ts`), then grows the frame as pictures arrive.
+
+Settings (`SettingsForm.tsx` with the pages of `PilePages.tsx`) saves as it changes. Its pages, the read view and the install help move through the browser history, so the phone's Back steps up one level; on Android Back first reaches an open dialog as a close request, which `closeRequestHandlers` (`Modal.tsx`) turns into the same step.
 
 ## Key decisions
 
@@ -66,7 +68,7 @@ The read view renders HTML email in a sandboxed frame with no scripts and a rest
 - **Conversations, not messages.** Gmail's inbox is a list of threads, so every action applies to the whole thread.
 - **Optimistic decisions, one at a time.** The deck reacts at once; the queue keeps an undo from overtaking the change it undoes.
 - **A decision can cover many conversations.** A swipe set to "all from the sender" makes one decision of the card at once; the sender's other conversations in the pile's search are found after it, in the same queued task, and join that decision (`joined`), so one undo covers them all and an undo in the meantime leaves them untouched. Their threads change three at a time to stay within Gmail's per-user rate limit, and only the threads Gmail refuses go back to the deck.
-- **Undo restores exact labels.** An action removes only labels the thread had, and its undo adds back only those, so undo never leaves a thread different from before.
+- **A swipe is one change, and undo restores exact labels.** A swipe's actions merge into one modify step that removes only labels the thread had and adds only labels it lacked, then Delete's trash; its undo reverses exactly that, so undo never leaves a thread different from before.
 - **Piles search by label id.** Labels a pile must have go in the list call's `labelIds`, so a renamed label or one with spaces still matches. Only labels a pile must not have go in the search text, in Gmail's name form, with names refreshed from Gmail when the app starts.
 - **Every batch starts from the first page.** Decisions change which threads match the search, which makes old page tokens skip threads; the deck remembers what it has seen instead.
 - **Unsubscribe from the browser, unconfirmed.** The one-click request goes straight from the browser in `no-cors` mode, so sender links never reach the Worker; the cost is that the app cannot read the sender's answer.

@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 
-export type SwipeDirection = 'left' | 'right' | 'up' | 'down';
+type SwipeDirection = 'left' | 'right' | 'up' | 'down';
 
 export interface SwipeAction {
   direction: SwipeDirection;

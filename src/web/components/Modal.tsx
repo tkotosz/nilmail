@@ -26,16 +26,14 @@ export function closeRequestHandlers(onRequest: () => void) {
 import { ArrowLeft, X } from 'lucide-react';
 
 /**
- * A dialog with a header: close at the start, or back on a page below its first, the title, and an optional action at the
- * end. With `fullScreen` it fills a phone's screen and becomes a centered dialog on wider ones, as Material's full-screen
- * dialogs do.
+ * A dialog with a header: close at the start, or back on a page below its first, then the title. With `fullScreen` it
+ * fills a phone's screen and becomes a centered dialog on wider ones, as Material's full-screen dialogs do.
  */
 export function Modal({
   name,
   onClose,
   children,
   className,
-  action,
   fullScreen = false,
   title,
   onBack,
@@ -49,7 +47,6 @@ export function Modal({
   onClose(): void;
   children: ReactNode;
   className?: string;
-  action?: ReactNode;
   fullScreen?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -84,7 +81,6 @@ export function Modal({
         <h2 id="dialog-title" ref={heading} tabIndex={-1}>
           {title ?? name}
         </h2>
-        {action}
       </header>
       <div className="modal-content">{children}</div>
     </dialog>
