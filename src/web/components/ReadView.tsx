@@ -10,7 +10,6 @@ import { problemText } from '../gmail-http.ts';
 import { Avatar } from './MailCardView.tsx';
 import { MessageBody } from './MessageBody.tsx';
 import { closeRequestHandlers } from './Modal.tsx';
-import { appVersion } from '../version.ts';
 
 /** The actions in the read view's top bar, as icons, the way Gmail shows them. */
 const topActions: ActionId[] = ['archive', 'delete', 'skip'];
@@ -107,37 +106,6 @@ function Message({
   );
 }
 
-/** TEMPORARY: link shapes to try on Android (1–5 all stayed in the in-app tab); the one that opens Chrome itself, not its in-app tab, goes into the app. */
-function BrowserLinkTest() {
-  const page = 'example.com/';
-  const fallback = encodeURIComponent(`https://${page}`);
-  const links: [string, string][] = [
-    ['1 · plain link (today)', `https://${page}`],
-    ['2 · intent', `intent://${page}#Intent;scheme=https;end`],
-    [
-      '3 · intent, view + browsable',
-      `intent://${page}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${fallback};end`,
-    ],
-    [
-      '4 · intent, view + browsable + new task',
-      `intent://${page}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;launchFlags=0x10000000;end`,
-    ],
-    ['5 · intent, Chrome named', `intent://${page}#Intent;scheme=https;package=com.android.chrome;end`],
-    ['6 · googlechrome link', `googlechrome://navigate?url=${fallback}`],
-  ];
-  const installed = matchMedia('(display-mode: standalone)').matches;
-  return (
-    <details className="link-test" open>
-      <summary>Browser link test (preview only) · {installed ? 'running as installed app' : 'running in a browser tab'}</summary>
-      {links.map(([label, href]) => (
-        <a key={label} href={href} target={/^(intent|googlechrome):/.test(href) ? undefined : '_blank'} rel="noopener">
-          {label}
-        </a>
-      ))}
-    </details>
-  );
-}
-
 /**
  * The whole conversation, full screen, laid out as Gmail does: the actions as icons in the top bar, the subject as the
  * page's title, and each message with its sender in brief.
@@ -226,8 +194,6 @@ export function ReadView({
             )}
           </div>
         )}
-        {/* TEMPORARY: preview builds only, to find which link shape opens Chrome instead of its in-app tab. */}
-        {!appVersion.startsWith('v') && <BrowserLinkTest />}
       </div>
     </dialog>
   );

@@ -4,7 +4,9 @@ import { darkenEmail } from '../email-dark.ts';
 
 /**
  * The frame's own rules: nothing loads except styles, fonts and (when allowed) images; no scripts run (the sandbox also
- * forbids them); links open outside the app.
+ * forbids them); links open outside the app. In an app installed on Android, Chrome opens them in its in-app tab
+ * whatever the link's form, intent:// links included, since they resolve to Chrome itself
+ * (https://issues.chromium.org/issues/40745354); long-pressing a link offers Open in Chrome.
  */
 function frameDocument(html: string, images: boolean): string {
   const imageSources = images ? 'https: http: data:' : 'data:';

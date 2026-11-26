@@ -1592,13 +1592,3 @@ label.row:has(.row-select:focus-visible)::before {
 [hidden] {
   display: none !important;
 }
-
-/* TEMPORARY: the browser link test on preview builds. */
-.link-test {
-  padding: 8px 16px;
-  font-size: 0.875rem;
-}
-.link-test a {
-  display: block;
-  padding: 10px 0;
-}
