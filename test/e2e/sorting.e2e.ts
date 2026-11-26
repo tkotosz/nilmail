@@ -1024,7 +1024,18 @@ test("Install: hidden without an offer, one tap with Chrome's offer, instruction
   await apple.page.getByRole('button', { name: 'Install app' }).click();
   const dialog = apple.page.getByRole('dialog', { name: 'Install nilmail' });
   await dialog.getByText('Add to Home Screen').waitFor();
+  assert.equal(await dialog.getByText('Open in Safari').count(), 0, 'Safari needs no detour');
   await apple.page.screenshot({ path: `${screenshots}install-iphone.png` });
   await apple.page.context().close();
-  assert.deepEqual([...errors, ...apple.errors], []);
+
+  // Messenger's built-in browser leaves Safari out of its user agent; its Share menu cannot add to the Home Screen.
+  const messenger =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/MessengerForiOS;FBAV/500.0]';
+  const inApp = await open(new FakeGmail(sampleThreads(2)), { userAgent: messenger });
+  await waitForCard(inApp.page);
+  await inApp.page.getByRole('button', { name: 'Install app' }).click();
+  await inApp.page.getByRole('dialog', { name: 'Install nilmail' }).getByText('Open in Safari').waitFor();
+  await inApp.page.screenshot({ path: `${screenshots}install-in-app.png` });
+  await inApp.page.context().close();
+  assert.deepEqual([...errors, ...apple.errors, ...inApp.errors], []);
 });

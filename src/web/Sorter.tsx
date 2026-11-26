@@ -23,6 +23,7 @@ import { ReadView } from './components/ReadView.tsx';
 import { SettingsForm, settingsOpened } from './components/SettingsForm.tsx';
 import { SwipeCard, type SwipeAction, type SwipeCardHandle } from './components/SwipeCard.tsx';
 import { useSwipeKeys } from './components/useSwipeKeys.ts';
+import { runsInAppBrowser } from './install-prompt.ts';
 import { problemText, type LabelCounts, type WebGmail } from './gmail-http.ts';
 import { SessionError } from './session.ts';
 import { sendUnsubscribe, unsubscribeDone } from './unsubscribe.ts';
@@ -475,12 +476,21 @@ export function Sorter({
 
       {dialog === 'install' && (
         <Modal name="Install nilmail" onClose={() => history.back()}>
+          {runsInAppBrowser() && (
+            <p className="install-notice">
+              This page is open inside another app, which can't add it to the Home Screen. Open it in <strong>Safari</strong>{' '}
+              first: look for <strong>Open in Safari</strong> or <strong>Open in browser</strong> in this app's menu (often behind{' '}
+              <strong>•••</strong> or a compass), then follow these steps there.
+            </p>
+          )}
           <ol className="install-steps">
             <li>
-              Tap <strong>Share</strong> <Share size={16} aria-label="(the square with an arrow)" /> in the browser's toolbar.
+              Tap <strong>Share</strong> <Share size={16} aria-label="(the square with an arrow)" /> in Safari's toolbar. If the
+              toolbar only shows <strong>•••</strong>, tap that first.
             </li>
             <li>
-              Choose <strong>Add to Home Screen</strong>. You may need to scroll down, or tap <strong>More</strong>, to see it.
+              Choose <strong>Add to Home Screen</strong>. You may need to scroll down, or tap <strong>More</strong>, to see it. If
+              it isn't there, tap <strong>Edit Actions</strong> at the bottom of the list and add it.
             </li>
             <li>
               Tap <strong>Add</strong>. nilmail then opens from your Home Screen like an app.

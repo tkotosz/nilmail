@@ -985,6 +985,15 @@ dialog[open] {
 .install-steps svg {
   vertical-align: -3px;
 }
+.install-notice {
+  margin: 8px 0 16px;
+  padding: 12px 16px;
+  border-radius: var(--shape-m);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
 
 /* Settings: rows in rounded groups, as Android's settings show them. */
 .settings-dialog {

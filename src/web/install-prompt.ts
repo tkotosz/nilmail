@@ -44,6 +44,17 @@ export function isAppleMobile(): boolean {
   return /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 }
 
+/**
+ * Whether the page is open in another app's built-in browser on an iPhone or iPad, such as a link tapped in Messenger,
+ * Instagram or the Google app, where the Share menu has no Add to Home Screen. Safari and the browsers that can add to the
+ * Home Screen name Safari in their user agent; those built-in browsers leave it out or add their app's name. Some apps
+ * open links in a view that reports itself as Safari, which no page can tell apart.
+ */
+export function runsInAppBrowser(): boolean {
+  const agent = navigator.userAgent;
+  return isAppleMobile() && (!/ Safari\//.test(agent) || /FBAN|FBAV|Instagram|GSA\/|Line\//.test(agent));
+}
+
 /** Whether the page runs as an installed app rather than in a browser tab. */
 export function runsInstalled(): boolean {
   return (
