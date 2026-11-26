@@ -107,7 +107,7 @@ function Message({
   );
 }
 
-/** TEMPORARY: link shapes to try on Android; the one that opens Chrome itself, not its in-app tab, goes into the app. */
+/** TEMPORARY: link shapes to try on Android (1–5 all stayed in the in-app tab); the one that opens Chrome itself, not its in-app tab, goes into the app. */
 function BrowserLinkTest() {
   const page = 'example.com/';
   const fallback = encodeURIComponent(`https://${page}`);
@@ -123,13 +123,14 @@ function BrowserLinkTest() {
       `intent://${page}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;launchFlags=0x10000000;end`,
     ],
     ['5 · intent, Chrome named', `intent://${page}#Intent;scheme=https;package=com.android.chrome;end`],
+    ['6 · googlechrome link', `googlechrome://navigate?url=${fallback}`],
   ];
   const installed = matchMedia('(display-mode: standalone)').matches;
   return (
     <details className="link-test" open>
       <summary>Browser link test (preview only) · {installed ? 'running as installed app' : 'running in a browser tab'}</summary>
       {links.map(([label, href]) => (
-        <a key={label} href={href} target={href.startsWith('intent:') ? undefined : '_blank'} rel="noopener">
+        <a key={label} href={href} target={/^(intent|googlechrome):/.test(href) ? undefined : '_blank'} rel="noopener">
           {label}
         </a>
       ))}
